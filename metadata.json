@@ -1,0 +1,6 @@
+{
+  "name": "SportCourt Manager Pro",
+  "description": "Hệ thống sổ thu chi và chốt doanh thu cuối ngày cho chủ sân Pickleball & Cầu Lông. Nhập tuần tự từng bill, đối soát tiền mặt & chuyển khoản, thống kê lợi nhuận ròng.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
