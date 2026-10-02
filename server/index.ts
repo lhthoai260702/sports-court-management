@@ -346,6 +346,27 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-app.listen(port, () => {
+const seedDatabase = async () => {
+  const courtCount = await prisma.court.count();
+  if (courtCount === 0) {
+    console.log('Seeding default courts...');
+    const defaultCourts = [
+      {"id":"pb-02","code":"PB-02","name":"Pickleball 2","type":"pickleball","subType":"SÂN PICKLEBALL","description":"Sân thi đấu tiêu chuẩn ProCushion","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":180000,"timeSlot":"08:00 - 10:00","isFeatured":true},
+      {"id":"cl-05","code":"CL-05","name":"Cầu lông 5","type":"badminton","subType":"SÂN CẦU LÔNG","description":"Sân đơn / đôi tiêu chuẩn BWF (Thảm PVC)","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":120000,"timeSlot":"09:00 - 11:00","isFeatured":true},
+      {"id":"pb-01","code":"PB-01","name":"Pickleball 1","type":"pickleball","subType":"SÂN PICKLEBALL","description":"Sân trung tâm mặt thảm tiêu chuẩn USAPA","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":180000,"timeSlot":"08:00 - 10:00","isFeatured":false},
+      {"id":"cl-04","code":"CL-04","name":"Cầu lông 4","type":"badminton","subType":"SÂN CẦU LÔNG","description":"Sân thảm tiêu chuẩn đôi","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":120000,"timeSlot":"14:00 - 16:00","isFeatured":false},
+      {"id":"cl-03","code":"CL-03","name":"Cầu lông 3","type":"badminton","subType":"SÂN CẦU LÔNG","description":"Sân cầu lông cao cấp sàn gỗ chống chấn","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":130000,"timeSlot":"16:00 - 18:00","isFeatured":false},
+      {"id":"cl-02","code":"CL-02","name":"Cầu lông 2","type":"badminton","subType":"SÂN CẦU LÔNG","description":"Sân thảm chống trượt chuẩn thi đấu","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":120000,"timeSlot":"18:00 - 20:00","isFeatured":false},
+      {"id":"cl-01","code":"CL-01","name":"Cầu lông 1","type":"badminton","subType":"SÂN CẦU LÔNG","description":"VIP Thảm Yonex chính hãng","revenueToday":0,"invoicesCount":0,"status":"available","hourlyRate":140000,"timeSlot":"06:00 - 08:00","isFeatured":false}
+    ];
+    for (const c of defaultCourts) {
+      await prisma.court.create({ data: c });
+    }
+    console.log('Default courts seeded.');
+  }
+};
+
+app.listen(port, async () => {
+  await seedDatabase();
   console.log(`Server running at http://localhost:${port}`);
 });
