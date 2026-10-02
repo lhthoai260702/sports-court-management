@@ -39,7 +39,8 @@ export const ReportsView: React.FC = () => {
   };
 
   const fetchReports = (start: string, end: string) => {
-    fetch(`http://localhost:3001/api/reports?startDate=${start}&endDate=${end}`)
+    const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3001/api';
+    fetch(`${API_BASE}/reports?startDate=${start}&endDate=${end}`)
       .then(res => res.json())
       .then(data => {
         setReports(data);

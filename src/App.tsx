@@ -13,7 +13,7 @@ import { QuickExpenseModal } from './components/QuickExpenseModal';
 import { InvoicePrintModal } from './components/InvoicePrintModal';
 import { ActiveTab, Court, Invoice, Expense, CatalogItem } from './types';
 
-const API_BASE = 'http://localhost:3001/api';
+const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:3001/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('so-do-san');
