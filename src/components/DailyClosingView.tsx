@@ -23,8 +23,10 @@ import {
   Coffee,
 } from 'lucide-react';
 import { Court, Invoice, Expense, CatalogItem } from '../types';
+import { CurrencyInput } from './CurrencyInput';
 import { DailyClosingSummaryModal } from './DailyClosingSummaryModal';
 import { InvoiceDetailEditModal } from './InvoiceDetailEditModal';
+import { ConfirmModal } from './ConfirmModal';
 
 interface DailyClosingViewProps {
   courts: Court[];
@@ -62,10 +64,10 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'cash'>('qr');
 
   // Fast consumable quantities
-  const [waterQty, setWaterQty] = useState(0);
+  const [icedTeaQty, setIcedTeaQty] = useState(0);
   const [reviveQty, setReviveQty] = useState(0);
   const [energyDrinkQty, setEnergyDrinkQty] = useState(0);
-  const [ballQty, setBallQty] = useState(0);
+  const [shuttlecockQty, setShuttlecockQty] = useState(0);
   const [racketRentQty, setRacketRentQty] = useState(0);
   const [gripQty, setGripQty] = useState(0);
 
@@ -80,13 +82,13 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
   const selectedCourt = courts.find((c) => c.id === selectedCourtId) || courts[0];
 
   // Calculate prices
-  const waterTotal = waterQty * 15000;
+  const icedTeaTotal = icedTeaQty * 5000;
   const reviveTotal = reviveQty * 20000;
   const energyTotal = energyDrinkQty * 25000;
-  const ballTotal = ballQty * 35000;
+  const shuttlecockTotal = shuttlecockQty * 25000;
   const racketTotal = racketRentQty * 40000;
   const gripTotal = gripQty * 20000;
-  const totalServiceFee = waterTotal + reviveTotal + energyTotal + ballTotal + racketTotal + gripTotal;
+  const totalServiceFee = icedTeaTotal + reviveTotal + energyTotal + shuttlecockTotal + racketTotal + gripTotal;
   const totalBillAmount = courtFee + totalServiceFee;
 
   // Format currency helper
@@ -138,10 +140,10 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
   // Reset form
   const handleResetForm = () => {
     setCustomerName('');
-    setWaterQty(0);
+    setIcedTeaQty(0);
     setReviveQty(0);
     setEnergyDrinkQty(0);
-    setBallQty(0);
+    setShuttlecockQty(0);
     setRacketRentQty(0);
     setGripQty(0);
     if (selectedCourt) {
@@ -163,71 +165,71 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
         manualTotal: courtFee,
         rentalTime: effectiveTime,
       },
-      ...(waterQty > 0
+      ...(icedTeaQty > 0
         ? [
-            {
-              id: `w-${Date.now()}`,
-              name: 'Nước suối Aquafina 500ml',
-              price: 15000,
-              quantity: waterQty,
-              category: 'drink' as const,
-            },
-          ]
+          {
+            id: `w-${Date.now()}`,
+            name: 'Trà đá',
+            price: 5000,
+            quantity: icedTeaQty,
+            category: 'drink' as const,
+          },
+        ]
         : []),
       ...(reviveQty > 0
         ? [
-            {
-              id: `r-${Date.now()}`,
-              name: 'Revive chanh muối bù khoáng',
-              price: 20000,
-              quantity: reviveQty,
-              category: 'drink' as const,
-            },
-          ]
+          {
+            id: `r-${Date.now()}`,
+            name: 'Revive chanh muối bù khoáng',
+            price: 20000,
+            quantity: reviveQty,
+            category: 'drink' as const,
+          },
+        ]
         : []),
       ...(energyDrinkQty > 0
         ? [
-            {
-              id: `e-${Date.now()}`,
-              name: 'Bò Húc Red Bull / Nước Yến',
-              price: 25000,
-              quantity: energyDrinkQty,
-              category: 'drink' as const,
-            },
-          ]
+          {
+            id: `e-${Date.now()}`,
+            name: 'Bò Húc Red Bull / Nước Yến',
+            price: 25000,
+            quantity: energyDrinkQty,
+            category: 'drink' as const,
+          },
+        ]
         : []),
-      ...(ballQty > 0
+      ...(shuttlecockQty > 0
         ? [
-            {
-              id: `b-${Date.now()}`,
-              name: selectedCourt?.type === 'pickleball' ? 'Bóng Pickleball Franklin X-40' : 'Cầu lông Yonex Aerosensa',
-              price: 35000,
-              quantity: ballQty,
-              category: 'accessory' as const,
-            },
-          ]
+          {
+            id: `b-${Date.now()}`,
+            name: 'Quả cầu lông',
+            price: 25000,
+            quantity: shuttlecockQty,
+            category: 'accessory' as const,
+          },
+        ]
         : []),
       ...(racketRentQty > 0
         ? [
-            {
-              id: `rk-${Date.now()}`,
-              name: 'Thuê vợt tập Carbon',
-              price: 40000,
-              quantity: racketRentQty,
-              category: 'accessory' as const,
-            },
-          ]
+          {
+            id: `rk-${Date.now()}`,
+            name: 'Thuê vợt tập Carbon',
+            price: 40000,
+            quantity: racketRentQty,
+            category: 'accessory' as const,
+          },
+        ]
         : []),
       ...(gripQty > 0
         ? [
-            {
-              id: `g-${Date.now()}`,
-              name: 'Quấn cán vợt thể thao',
-              price: 20000,
-              quantity: gripQty,
-              category: 'accessory' as const,
-            },
-          ]
+          {
+            id: `g-${Date.now()}`,
+            name: 'Quấn cán vợt thể thao',
+            price: 20000,
+            quantity: gripQty,
+            category: 'accessory' as const,
+          },
+        ]
         : []),
     ];
 
@@ -245,7 +247,15 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
       totalAmount: totalBillAmount,
       paymentMethod,
       status: 'paid',
-      createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      createdAt: (function () {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const hh = String(now.getHours()).padStart(2, '0');
+        const min = String(now.getMinutes()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+      })(),
     };
 
     onSaveInvoice(newInv);
@@ -260,10 +270,10 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
 
     // Reset items for seamless next entry
     setCustomerName('');
-    setWaterQty(0);
+    setIcedTeaQty(0);
     setReviveQty(0);
     setEnergyDrinkQty(0);
-    setBallQty(0);
+    setShuttlecockQty(0);
     setRacketRentQty(0);
     setGripQty(0);
   };
@@ -426,7 +436,7 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
               onClick={onOpenQuickExpense}
               className="text-[11px] font-bold text-[#ba1a1a] hover:underline cursor-pointer"
             >
-              + Thêm chi
+              thêm chi
             </button>
           </div>
           <div className="my-2">
@@ -482,17 +492,15 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                       key={c.id}
                       type="button"
                       onClick={() => handleSelectCourt(c.id)}
-                      className={`p-2.5 rounded-2xl text-left border transition-all cursor-pointer flex flex-col gap-0.5 ${
-                        isSelected
+                      className={`p-2.5 rounded-2xl text-left border transition-all cursor-pointer flex flex-col gap-0.5 ${isSelected
                           ? 'bg-[#006948] text-white border-[#006948] shadow-sm shadow-[#006948]/20 font-bold'
                           : 'bg-[#f8f9ff] text-[#0b1c30] border-[#dce9ff] hover:border-[#85f8c4]'
-                      }`}
+                        }`}
                     >
                       <span className="text-xs font-bold leading-tight">{c.name}</span>
                       <span
-                        className={`text-[10px] font-semibold ${
-                          isSelected ? 'text-[#c6f6df]' : isPB ? 'text-[#006948]' : 'text-[#0051d5]'
-                        }`}
+                        className={`text-[10px] font-semibold ${isSelected ? 'text-[#c6f6df]' : isPB ? 'text-[#006948]' : 'text-[#0051d5]'
+                          }`}
                       >
                         {formatCurrency(c.hourlyRate)}đ/h
                       </span>
@@ -527,11 +535,10 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                       key={preset.time}
                       type="button"
                       onClick={() => handleSelectTimePreset(preset.time, preset.h)}
-                      className={`px-2.5 py-1 text-xs rounded-xl font-semibold border transition-all cursor-pointer ${
-                        isActive
+                      className={`px-2.5 py-1 text-xs rounded-xl font-semibold border transition-all cursor-pointer ${isActive
                           ? 'bg-[#006948] text-white border-[#006948]'
                           : 'bg-[#eff4ff] text-[#3d4a42] border-[#dce9ff] hover:bg-[#dce9ff]'
-                      }`}
+                        }`}
                     >
                       {preset.label}
                     </button>
@@ -550,12 +557,9 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                 />
 
                 <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="10000"
+                  <CurrencyInput
                     value={courtFee === 0 ? '' : courtFee}
-                    onChange={(e) => setCourtFee(e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0)}
+                    onChange={(val) => setCourtFee(val === '' ? 0 : Number(val) || 0)}
                     placeholder="Tiền giờ sân"
                     className="w-full pl-3 pr-7 py-2 bg-[#f0fbf7] border border-[#85f8c4] rounded-xl text-xs font-black text-[#006948] focus:outline-none focus:border-[#006948] text-right"
                   />
@@ -606,21 +610,21 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
 
               {/* Items Grid */}
               <div className="flex flex-col gap-2 text-xs">
-                {/* Aquafina */}
+                {/* Trà đá */}
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-[#0b1c30]">Aquafina 500ml (15k)</span>
+                  <span className="font-medium text-[#0b1c30]">Trà đá (5k)</span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setWaterQty(Math.max(0, waterQty - 1))}
+                      onClick={() => setIcedTeaQty(Math.max(0, icedTeaQty - 1))}
                       className="w-6 h-6 rounded-lg bg-white border border-[#dce9ff] text-xs font-bold hover:bg-[#eff4ff] cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="w-5 text-center font-extrabold text-xs">{waterQty}</span>
+                    <span className="w-5 text-center font-extrabold text-xs">{icedTeaQty}</span>
                     <button
                       type="button"
-                      onClick={() => setWaterQty(waterQty + 1)}
+                      onClick={() => setIcedTeaQty(icedTeaQty + 1)}
                       className="w-6 h-6 rounded-lg bg-white border border-[#dce9ff] text-xs font-bold hover:bg-[#eff4ff] cursor-pointer"
                     >
                       +
@@ -675,20 +679,20 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                 {/* Ball / Shuttlecock */}
                 <div className="flex items-center justify-between">
                   <span className="font-medium text-[#0b1c30]">
-                    {selectedCourt?.type === 'pickleball' ? 'Bóng Franklin X-40 (35k)' : 'Cầu lông Yonex (35k)'}
+                    Quả cầu lông (25k)
                   </span>
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setBallQty(Math.max(0, ballQty - 1))}
+                      onClick={() => setShuttlecockQty(Math.max(0, shuttlecockQty - 1))}
                       className="w-6 h-6 rounded-lg bg-white border border-[#dce9ff] text-xs font-bold hover:bg-[#eff4ff] cursor-pointer"
                     >
                       -
                     </button>
-                    <span className="w-5 text-center font-extrabold text-xs">{ballQty}</span>
+                    <span className="w-5 text-center font-extrabold text-xs">{shuttlecockQty}</span>
                     <button
                       type="button"
-                      onClick={() => setBallQty(ballQty + 1)}
+                      onClick={() => setShuttlecockQty(shuttlecockQty + 1)}
                       className="w-6 h-6 rounded-lg bg-white border border-[#dce9ff] text-xs font-bold hover:bg-[#eff4ff] cursor-pointer"
                     >
                       +
@@ -751,11 +755,10 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('qr')}
-                  className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    paymentMethod === 'qr'
+                  className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${paymentMethod === 'qr'
                       ? 'bg-[#0051d5] text-white border-[#0051d5] shadow-xs'
                       : 'bg-[#eff4ff] text-[#3d4a42] border-[#dce9ff] hover:bg-[#dce9ff]'
-                  }`}
+                    }`}
                 >
                   <QrCode className="w-4 h-4" />
                   <span>Chuyển khoản QR</span>
@@ -764,11 +767,10 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cash')}
-                  className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    paymentMethod === 'cash'
+                  className={`flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${paymentMethod === 'cash'
                       ? 'bg-[#006948] text-white border-[#006948] shadow-xs'
                       : 'bg-[#eff4ff] text-[#3d4a42] border-[#dce9ff] hover:bg-[#dce9ff]'
-                  }`}
+                    }`}
                 >
                   <Banknote className="w-4 h-4" />
                   <span>Tiền mặt (Két)</span>
@@ -864,33 +866,30 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                   <button
                     type="button"
                     onClick={() => setPaymentFilter('all')}
-                    className={`px-2.5 py-0.5 rounded-lg transition-all cursor-pointer ${
-                      paymentFilter === 'all'
+                    className={`px-2.5 py-0.5 rounded-lg transition-all cursor-pointer ${paymentFilter === 'all'
                         ? 'bg-[#006948] text-white font-bold'
                         : 'text-[#545c72] hover:text-[#0b1c30]'
-                    }`}
+                      }`}
                   >
                     Tất cả
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentFilter('qr')}
-                    className={`px-2.5 py-0.5 rounded-lg transition-all cursor-pointer ${
-                      paymentFilter === 'qr'
+                    className={`px-2.5 py-0.5 rounded-lg transition-all cursor-pointer ${paymentFilter === 'qr'
                         ? 'bg-[#006948] text-white font-bold'
                         : 'text-[#545c72] hover:text-[#0b1c30]'
-                    }`}
+                      }`}
                   >
                     QR
                   </button>
                   <button
                     type="button"
                     onClick={() => setPaymentFilter('cash')}
-                    className={`px-2.5 py-0.5 rounded-lg transition-all cursor-pointer ${
-                      paymentFilter === 'cash'
+                    className={`px-2.5 py-0.5 rounded-lg transition-all cursor-pointer ${paymentFilter === 'cash'
                         ? 'bg-[#006948] text-white font-bold'
                         : 'text-[#545c72] hover:text-[#0b1c30]'
-                    }`}
+                      }`}
                   >
                     Tiền mặt
                   </button>
@@ -971,52 +970,32 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
                               {formatCurrency(inv.totalAmount)} đ
                             </td>
                             <td className="px-3.5 py-3 text-center whitespace-nowrap">
-                              {confirmDeleteRowId === inv.id ? (
-                                <div className="inline-flex items-center gap-1 bg-[#ffdad6] px-2 py-0.5 rounded-lg border border-[#ffb4ab]">
-                                  <span className="text-[10px] font-bold text-[#ba1a1a]">Xóa?</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteBill(inv.id)}
-                                    className="px-1.5 py-0.5 bg-[#ba1a1a] hover:bg-[#93000a] text-white font-bold rounded text-[10px] cursor-pointer"
-                                  >
-                                    Có
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteRowId(null)}
-                                    className="px-1 py-0.5 bg-white text-[#3d4a42] font-bold rounded text-[10px] cursor-pointer"
-                                  >
-                                    Hủy
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-center gap-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => setEditingInvoice(inv)}
-                                    className="w-7 h-7 flex items-center justify-center bg-[#eff4ff] hover:bg-[#dce9ff] text-[#0051d5] rounded-lg border border-[#dce9ff] transition-colors cursor-pointer"
-                                    title="Xem & Sửa bill"
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => onPrintInvoice(inv)}
-                                    className="w-7 h-7 flex items-center justify-center bg-[#f8f9ff] hover:bg-[#eff4ff] text-[#006948] rounded-lg border border-[#e5eeff] transition-colors cursor-pointer"
-                                    title="In hóa đơn lẻ"
-                                  >
-                                    <Printer className="w-3.5 h-3.5" />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteRowId(inv.id)}
-                                    className="w-7 h-7 flex items-center justify-center text-[#ba1a1a] hover:bg-[#ffdad6] rounded-lg transition-colors cursor-pointer"
-                                    title="Xóa bill"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
-                              )}
+                              <div className="flex items-center justify-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingInvoice(inv)}
+                                  className="w-7 h-7 flex items-center justify-center bg-[#eff4ff] hover:bg-[#dce9ff] text-[#0051d5] rounded-lg border border-[#dce9ff] transition-colors cursor-pointer"
+                                  title="Xem & Sửa bill"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onPrintInvoice(inv)}
+                                  className="w-7 h-7 flex items-center justify-center bg-[#f8f9ff] hover:bg-[#eff4ff] text-[#006948] rounded-lg border border-[#e5eeff] transition-colors cursor-pointer"
+                                  title="In hóa đơn lẻ"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteRowId(inv.id)}
+                                  className="w-7 h-7 flex items-center justify-center text-[#ba1a1a] hover:bg-[#ffdad6] rounded-lg transition-colors cursor-pointer"
+                                  title="Xóa bill"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1065,6 +1044,19 @@ export const DailyClosingView: React.FC<DailyClosingViewProps> = ({
           handleDeleteBill(invId);
           setEditingInvoice(null);
         }}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteRowId}
+        title="Xác nhận xóa hóa đơn"
+        message={`Bạn có chắc chắn muốn xóa hóa đơn ${confirmDeleteRowId} không? Thao tác này không thể hoàn tác.`}
+        confirmText="Xóa hóa đơn"
+        onConfirm={() => {
+          if (confirmDeleteRowId) {
+            handleDeleteBill(confirmDeleteRowId);
+          }
+        }}
+        onCancel={() => setConfirmDeleteRowId(null)}
       />
     </div>
   );

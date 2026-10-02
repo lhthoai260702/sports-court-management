@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft,
   Calendar,
@@ -21,6 +21,28 @@ import {
   Save,
 } from 'lucide-react';
 import { Court, BillItem, Invoice, CatalogItem } from '../types';
+import { CurrencyInput } from './CurrencyInput';
+import { ConfirmModal } from './ConfirmModal';
+
+const formatTimeRangeInput = (value: string) => {
+  const numbers = value.replace(/\D/g, '');
+  let formatted = '';
+
+  if (numbers.length > 0) {
+    formatted += numbers.substring(0, 2);
+  }
+  if (numbers.length > 2) {
+    formatted += ':' + numbers.substring(2, 4);
+  }
+  if (numbers.length > 4) {
+    formatted += ' - ' + numbers.substring(4, 6);
+  }
+  if (numbers.length > 6) {
+    formatted += ':' + numbers.substring(6, 8);
+  }
+
+  return formatted;
+};
 
 interface CourtDetailViewProps {
   court: Court;
@@ -46,17 +68,61 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
   onNavigateToProducts,
 }) => {
   // Helper to create default items: ONLY court rental fee is default, everything else empty!
-  const createDefaultItems = (courtData: Court): BillItem[] => [
-    {
-      id: `court-rent-${courtData.id}-${Date.now()}`,
-      name: `Tiền giờ thuê sân (${courtData.timeSlot || '08:00 - 10:00'})`,
-      price: 0,
-      quantity: 0,
-      category: 'court',
-      rentalTime: courtData.timeSlot || '08:00 - 10:00',
-      manualTotal: courtData.hourlyRate ? courtData.hourlyRate * 2 : 360000,
-    },
-  ];
+  const createDefaultItems = (courtData: Court): BillItem[] => {
+    const getCatalogItem = (nameKeywords: string[], defaultName: string, defaultPrice: number, fallbackId?: string) => {
+      const item = catalogItems.find(i =>
+        (fallbackId && i.id === fallbackId) ||
+        nameKeywords.some(kw => i.name.toLowerCase().includes(kw.toLowerCase()))
+      );
+      return item ? item : { id: `w-${Math.random().toString(36).substr(2, 5)}`, name: defaultName, price: defaultPrice, category: 'drink' };
+    };
+
+    const aquafinaItem = getCatalogItem(['aquafina'], 'Nước suối Aquafina 500ml', 15000, 'cat-01');
+    const icedTeaItem = getCatalogItem(['trà đá'], 'Trà đá', 10000, 'cat-01a');
+    const reviveSaltItem = getCatalogItem(['chanh muối'], 'Revive chanh muối', 15000, 'cat-02');
+    const reviveNormalItem = getCatalogItem(['revive thường'], 'Revive thường', 15000);
+
+    const now = Date.now();
+    return [
+      {
+        id: `court-rent-${courtData.id}-${now}`,
+        name: `Tiền giờ thuê sân`,
+        price: 0,
+        quantity: 0,
+        category: 'court',
+        rentalTime: '',
+        manualTotal: undefined,
+      },
+      {
+        id: `w-a-${now}`,
+        name: aquafinaItem.name,
+        price: aquafinaItem.price,
+        quantity: 0,
+        category: 'drink',
+      },
+      {
+        id: `w-t-${now}`,
+        name: icedTeaItem.name,
+        price: icedTeaItem.price,
+        quantity: 0,
+        category: 'drink',
+      },
+      {
+        id: `w-rs-${now}`,
+        name: reviveSaltItem.name,
+        price: reviveSaltItem.price,
+        quantity: 0,
+        category: 'drink',
+      },
+      {
+        id: `w-rn-${now}`,
+        name: reviveNormalItem.name,
+        price: reviveNormalItem.price,
+        quantity: 0,
+        category: 'drink',
+      },
+    ];
+  };
 
   // Current active draft items matching the user's requirements
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
@@ -65,6 +131,8 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
   const [paymentMethod, setPaymentMethod] = useState<'qr' | 'cash'>('qr');
   const [showCatalogModal, setShowCatalogModal] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [courtFeeError, setCourtFeeError] = useState<string | null>(null);
+  const [draftCourtFeeError, setDraftCourtFeeError] = useState<string | null>(null);
 
   // Helper to calculate next receipt code based on court and count of invoices
   const calculateNextReceiptCode = (courtObj: Court, currentInvoices: Invoice[]) => {
@@ -82,6 +150,20 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
   const [showDraftCatalogDropdown, setShowDraftCatalogDropdown] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
+  const draftDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (draftDropdownRef.current && !draftDropdownRef.current.contains(event.target as Node)) {
+        setShowDraftCatalogDropdown(false);
+      }
+    };
+    if (showDraftCatalogDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showDraftCatalogDropdown]);
+
   // Initial items: first and only default row is Court rental!
   const [items, setItems] = useState<BillItem[]>(() => createDefaultItems(court));
 
@@ -94,14 +176,15 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
     setItems(createDefaultItems(court));
   }, [court.id, court.timeSlot, court.hourlyRate]);
 
-  const updateCourtRentalTime = (id: string, newTime: string) => {
+  const updateCourtRentalTime = (id: string, rawTime: string) => {
+    const newTime = formatTimeRangeInput(rawTime);
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {
           return {
             ...item,
             rentalTime: newTime,
-            name: `Tiền giờ thuê sân (${newTime})`,
+            name: newTime ? `Tiền giờ thuê sân (${newTime})` : 'Tiền giờ thuê sân',
           };
         }
         return item;
@@ -109,13 +192,13 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
     );
   };
 
-  const updateCourtManualTotal = (id: string, newTotal: number) => {
+  const updateCourtManualTotal = (id: string, newTotal: number | undefined) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === id) {
           return {
             ...item,
-            manualTotal: Math.max(0, isNaN(newTotal) ? 0 : newTotal),
+            manualTotal: newTotal === undefined || isNaN(newTotal) ? undefined : Math.max(0, newTotal),
           };
         }
         return item;
@@ -151,16 +234,21 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
     if (existing) {
       updateQuantity(existing.id, 1);
     } else {
-      setItems((prev) => [
-        ...prev,
-        {
-          id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          name: catItem.name,
-          price: catItem.price,
-          quantity: 1,
-          category: catItem.category,
-        },
-      ]);
+      setItems((prev) => {
+        const courtItems = prev.filter(i => i.category === 'court');
+        const otherItems = prev.filter(i => i.category !== 'court');
+        return [
+          ...courtItems,
+          {
+            id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+            name: catItem.name,
+            price: catItem.price,
+            quantity: 1,
+            category: catItem.category,
+          },
+          ...otherItems,
+        ];
+      });
     }
     setShowCatalogModal(false);
   };
@@ -205,11 +293,17 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
 
   // Nút Lưu lại: lưu hóa đơn, clear lại dữ liệu bảng thu tiền nhanh, và cập nhật mã phiếu
   const handleSaveNew = () => {
-    const total = items.reduce((sum, item) => sum + getItemLineTotal(item), 0);
     const courtItem = items.find((it) => it.category === 'court');
+    if (!courtItem || courtItem.manualTotal === undefined || courtItem.manualTotal <= 0) {
+      setCourtFeeError('Vui lòng nhập tiền giờ thuê sân!');
+      return;
+    }
+    setCourtFeeError(null);
+
+    const total = items.reduce((sum, item) => sum + getItemLineTotal(item), 0);
     const courtItemsTotal = courtItem ? getItemLineTotal(courtItem) : 0;
     const serviceItemsTotal = total - courtItemsTotal;
-    const rentalTimeSlot = courtItem?.rentalTime || court.timeSlot || '08:00 - 10:00';
+    const rentalTimeSlot = courtItem?.rentalTime || '';
 
     if (editingInvoiceId) {
       const updatedInvoice: Invoice = {
@@ -223,9 +317,10 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
           .filter((it) => (it.category === 'court' ? (it.manualTotal ?? 0) >= 0 : it.quantity > 0))
           .map((it) => {
             if (it.category === 'court') {
+              const timeStr = it.rentalTime || rentalTimeSlot;
               return {
                 ...it,
-                name: `Tiền giờ thuê sân (${it.rentalTime || rentalTimeSlot})`,
+                name: timeStr ? `Tiền giờ thuê sân (${timeStr})` : `Tiền giờ thuê sân`,
                 price: it.manualTotal || 0,
                 quantity: 1,
               };
@@ -237,7 +332,14 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
         serviceFee: serviceItemsTotal,
         paymentMethod,
         status: 'paid',
-        createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        createdAt: (function () {
+          const d = new Date();
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          return `${yyyy}-${mm}-${dd} ${time}`;
+        })(),
       };
 
       if (onUpdateInvoice) {
@@ -257,9 +359,10 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
           .filter((it) => (it.category === 'court' ? (it.manualTotal ?? 0) >= 0 : it.quantity > 0))
           .map((it) => {
             if (it.category === 'court') {
+              const timeStr = it.rentalTime || rentalTimeSlot;
               return {
                 ...it,
-                name: `Tiền giờ thuê sân (${it.rentalTime || rentalTimeSlot})`,
+                name: timeStr ? `Tiền giờ thuê sân (${timeStr})` : `Tiền giờ thuê sân`,
                 price: it.manualTotal || 0,
                 quantity: 1,
               };
@@ -271,7 +374,14 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
         serviceFee: serviceItemsTotal,
         paymentMethod,
         status: 'paid',
-        createdAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        createdAt: (function () {
+          const d = new Date();
+          const yyyy = d.getFullYear();
+          const mm = String(d.getMonth() + 1).padStart(2, '0');
+          const dd = String(d.getDate()).padStart(2, '0');
+          const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+          return `${yyyy}-${mm}-${dd} ${time}`;
+        })(),
       };
 
       onSaveInvoice(newInvoice);
@@ -315,11 +425,12 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
     setEditingDraft({ ...editingDraft, customerName: val });
   };
 
-  const updateDraftTimeSlot = (val: string) => {
+  const updateDraftTimeSlot = (rawVal: string) => {
     if (!editingDraft) return;
+    const val = formatTimeRangeInput(rawVal);
     const updatedItems = editingDraft.items.map((it) =>
       it.category === 'court'
-        ? { ...it, name: `Tiền giờ thuê sân (${val})`, rentalTime: val }
+        ? { ...it, name: val ? `Tiền giờ thuê sân (${val})` : 'Tiền giờ thuê sân', rentalTime: val }
         : it
     );
     setEditingDraft({
@@ -410,8 +521,10 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
         idx === existingIndex ? { ...it, quantity: it.quantity + 1 } : it
       );
     } else {
+      const courtItems = editingDraft.items.filter(i => i.category === 'court');
+      const otherItems = editingDraft.items.filter(i => i.category !== 'court');
       updatedItems = [
-        ...editingDraft.items,
+        ...courtItems,
         {
           id: `draft-item-${Date.now()}-${Math.random()}`,
           name: cat.name,
@@ -419,6 +532,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
           quantity: 1,
           category: cat.category,
         },
+        ...otherItems,
       ];
     }
     const courtFee =
@@ -440,6 +554,11 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
 
   const handleSaveDraftChanges = () => {
     if (!editingDraft) return;
+    if (editingDraft.courtFee === undefined || editingDraft.courtFee <= 0) {
+      setDraftCourtFeeError('Vui lòng nhập tiền giờ thuê sân!');
+      return;
+    }
+    setDraftCourtFeeError(null);
     if (onUpdateInvoice) {
       onUpdateInvoice(editingDraft);
     }
@@ -704,11 +823,10 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                             </div>
                             <input
                               type="text"
-                              value={item.rentalTime ?? '08:00 - 10:00'}
+                              value={item.rentalTime ?? ''}
                               onChange={(e) => updateCourtRentalTime(item.id, e.target.value)}
                               placeholder="08:00 - 10:00"
                               className="w-44 px-2.5 py-1 text-xs sm:text-sm font-bold text-[#0b1c30] bg-white border border-[#85f8c4] focus:border-[#006948] rounded-lg focus:outline-none shadow-2xs"
-                              title="Chỉnh giờ thuê sân"
                             />
                           </div>
                         </td>
@@ -720,24 +838,25 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                         <td className="px-4 py-3.5 text-sm text-center text-[#bccac0]"></td>
 
                         {/* TỔNG TIỀN (Đ) - Tự nhập tay */}
-                        <td className="px-4 py-3.5 text-right">
-                          <div className="inline-flex items-center justify-end gap-1.5">
-                            <input
-                              type="number"
-                              min="0"
-                              step="10000"
-                              value={item.manualTotal !== undefined ? (item.manualTotal === 0 ? '' : item.manualTotal) : ''}
-                              onChange={(e) =>
-                                updateCourtManualTotal(
-                                  item.id,
-                                  e.target.value === '' ? 0 : parseInt(e.target.value, 10) || 0
-                                )
-                              }
-                              placeholder="0"
-                              className="w-36 px-3 py-1.5 bg-white border-2 border-[#85f8c4] focus:border-[#006948] rounded-xl text-right font-extrabold text-sm text-[#006948] focus:outline-none shadow-2xs"
-                              title="Tự nhập tay tổng tiền giờ sân"
-                            />
-                            <span className="text-xs font-bold text-[#006948]">đ</span>
+                        <td className="px-4 py-3.5 text-right align-top">
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="inline-flex items-center justify-end gap-1.5">
+                              <CurrencyInput
+                                value={item.manualTotal ?? ''}
+                                onChange={(val) => {
+                                  updateCourtManualTotal(
+                                    item.id,
+                                    val === '' ? undefined : Number(val)
+                                  );
+                                  if (courtFeeError) setCourtFeeError(null);
+                                }}
+                                placeholder="Ví dụ: 360.000"
+                                className={`w-40 px-3 py-1.5 bg-white border-2 ${courtFeeError ? 'border-red-500 focus:border-red-500' : 'border-[#85f8c4] focus:border-[#006948]'} rounded-xl text-right font-extrabold text-sm text-[#006948] focus:outline-none shadow-2xs placeholder:font-normal placeholder:text-[#a0aab2] placeholder:text-xs transition-colors`}
+                                title="Tự nhập tay tổng tiền giờ sân"
+                              />
+                              <span className="text-xs font-bold text-[#006948]">đ</span>
+                            </div>
+                            {courtFeeError && <span className="text-[10px] text-red-500 font-bold">{courtFeeError}</span>}
                           </div>
                         </td>
 
@@ -766,7 +885,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                       </td>
 
                       <td className="px-4 py-3 text-sm font-semibold text-[#3d4a42] text-right">
-                        {formatCurrency(item.price)}
+                        {formatCurrency(item.price)} <span className="text-xs">đ</span>
                       </td>
 
                       <td className="px-4 py-3 text-center">
@@ -796,7 +915,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                       </td>
 
                       <td className="px-4 py-3 text-sm font-bold text-right text-[#006948]">
-                        {formatCurrency(lineTotal)}
+                        {formatCurrency(lineTotal)} <span className="text-xs">đ</span>
                       </td>
 
                       <td className="px-4 py-3 text-center">
@@ -822,7 +941,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                     >
                       <span>
                         Chưa có thêm món / dịch vụ nào. Bấm nút{' '}
-                        <strong className="text-[#006948] font-bold">+ Thêm món / dịch vụ khác</strong> bên
+                        <strong className="text-[#006948] font-bold">thêm món / dịch vụ khác</strong> bên
                         dưới để chọn nước uống, đồ ăn hoặc phụ kiện từ danh mục.
                       </span>
                     </td>
@@ -841,7 +960,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                 className="inline-flex items-center gap-2 px-4 py-2 bg-[#eff4ff] hover:bg-[#dce9ff] text-[#006948] font-bold text-xs sm:text-sm rounded-xl border border-[#85f8c4] transition-all cursor-pointer w-fit shadow-2xs"
               >
                 <Plus className="w-4 h-4 text-[#006948]" />
-                <span>+ Thêm món / dịch vụ khác</span>
+                <span>thêm món / dịch vụ khác</span>
               </button>
 
               {onNavigateToProducts && (
@@ -873,11 +992,10 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('qr')}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border-2 transition-all cursor-pointer font-bold text-sm ${
-                    paymentMethod === 'qr'
-                      ? 'border-[#006948] bg-[#85f8c4]/15 text-[#006948]'
-                      : 'border-[#dce9ff] bg-white text-[#545c72] hover:bg-[#eff4ff]'
-                  }`}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border-2 transition-all cursor-pointer font-bold text-sm ${paymentMethod === 'qr'
+                    ? 'border-[#006948] bg-[#85f8c4]/15 text-[#006948]'
+                    : 'border-[#dce9ff] bg-white text-[#545c72] hover:bg-[#eff4ff]'
+                    }`}
                 >
                   <QrCode className="w-4 h-4" />
                   <span>QR Chuyển khoản</span>
@@ -886,11 +1004,10 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cash')}
-                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border-2 transition-all cursor-pointer font-bold text-sm ${
-                    paymentMethod === 'cash'
-                      ? 'border-[#006948] bg-[#85f8c4]/15 text-[#006948]'
-                      : 'border-[#dce9ff] bg-white text-[#545c72] hover:bg-[#eff4ff]'
-                  }`}
+                  className={`flex items-center gap-2.5 px-4 py-2.5 rounded-xl border-2 transition-all cursor-pointer font-bold text-sm ${paymentMethod === 'cash'
+                    ? 'border-[#006948] bg-[#85f8c4]/15 text-[#006948]'
+                    : 'border-[#dce9ff] bg-white text-[#545c72] hover:bg-[#eff4ff]'
+                    }`}
                 >
                   <Banknote className="w-4 h-4" />
                   <span>Tiền mặt</span>
@@ -968,9 +1085,8 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                   <React.Fragment key={inv.id}>
                     <tr
                       onClick={() => handleToggleExpand(inv)}
-                      className={`hover:bg-[#f8f9ff] transition-colors cursor-pointer ${
-                        isExpanded ? 'bg-[#eff4ff]/70 font-semibold' : ''
-                      }`}
+                      className={`hover:bg-[#f8f9ff] transition-colors cursor-pointer ${isExpanded ? 'bg-[#eff4ff]/70 font-semibold' : ''
+                        }`}
                     >
                       <td className="px-5 py-3.5 text-sm font-bold text-[#0b1c30]">
                         {inv.id}
@@ -991,17 +1107,15 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                             e.stopPropagation();
                             handleToggleExpand(inv);
                           }}
-                          className={`w-8 h-8 inline-flex items-center justify-center rounded-xl transition-all cursor-pointer border shadow-2xs ${
-                            isExpanded
-                              ? 'bg-[#006948] text-white border-[#006948]'
-                              : 'bg-[#eff4ff] hover:bg-[#dce9ff] text-[#006948] border-[#dce9ff]'
-                          }`}
+                          className={`w-8 h-8 inline-flex items-center justify-center rounded-xl transition-all cursor-pointer border shadow-2xs ${isExpanded
+                            ? 'bg-[#006948] text-white border-[#006948]'
+                            : 'bg-[#eff4ff] hover:bg-[#dce9ff] text-[#006948] border-[#dce9ff]'
+                            }`}
                           title={isExpanded ? 'Thu gọn' : 'Xem & Sửa hóa đơn'}
                         >
                           <ChevronDown
-                            className={`w-4 h-4 transition-transform duration-200 ${
-                              isExpanded ? 'rotate-180 text-white' : 'text-[#006948]'
-                            }`}
+                            className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180 text-white' : 'text-[#006948]'
+                              }`}
                           />
                         </button>
                       </td>
@@ -1041,35 +1155,15 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                 </button>
 
                                 {/* Nút Xóa bill ở thanh header */}
-                                {confirmDeleteId === inv.id ? (
-                                  <div className="flex items-center gap-1.5 bg-[#ffdad6] px-2 py-1 rounded-lg border border-[#ffb4ab] animate-fadeIn">
-                                    <span className="text-xs font-bold text-[#ba1a1a]">Xóa bill này?</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteDraftInvoice(inv.id)}
-                                      className="px-2 py-0.5 bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-bold rounded transition-colors cursor-pointer"
-                                    >
-                                      Xóa
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmDeleteId(null)}
-                                      className="px-1.5 py-0.5 bg-white hover:bg-[#f8f9ff] text-[#3d4a42] text-xs font-bold rounded transition-colors cursor-pointer"
-                                    >
-                                      Hủy
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteId(inv.id)}
-                                    className="text-xs font-bold text-[#ba1a1a] hover:text-[#93000a] flex items-center gap-1 cursor-pointer bg-[#ffdad6]/70 hover:bg-[#ffdad6] px-2.5 py-1 rounded-lg border border-[#ffb4ab]/60 transition-colors"
-                                    title="Xóa vĩnh viễn hóa đơn này"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Xóa bill</span>
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteId(inv.id)}
+                                  className="text-xs font-bold text-[#ba1a1a] hover:text-[#93000a] flex items-center gap-1 cursor-pointer bg-[#ffdad6]/70 hover:bg-[#ffdad6] px-2.5 py-1 rounded-lg border border-[#ffb4ab]/60 transition-colors"
+                                  title="Xóa vĩnh viễn hóa đơn này"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa bill</span>
+                                </button>
 
                                 <button
                                   type="button"
@@ -1119,17 +1213,20 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                     <td className="px-3.5 py-2.5 text-center text-[#6d7a72] italic">
                                       -
                                     </td>
-                                    <td className="px-3.5 py-2.5 text-right">
-                                      <div className="inline-flex items-center justify-end gap-1">
-                                        <input
-                                          type="number"
-                                          step="1000"
-                                          min="0"
-                                          value={editingDraft.courtFee}
-                                          onChange={(e) => updateDraftCourtFee(parseInt(e.target.value, 10) || 0)}
-                                          className="w-24 px-2 py-0.5 bg-white border border-[#dce9ff] rounded text-xs font-extrabold text-[#006948] text-right focus:outline-none focus:border-[#006948]"
-                                        />
-                                        <span className="font-bold text-[#006948]">đ</span>
+                                    <td className="px-3.5 py-2.5 text-right align-top">
+                                      <div className="flex flex-col items-end gap-1">
+                                        <div className="inline-flex items-center justify-end gap-1">
+                                          <CurrencyInput
+                                            value={editingDraft.courtFee}
+                                            onChange={(val) => {
+                                              updateDraftCourtFee(Number(val) || 0);
+                                              if (draftCourtFeeError) setDraftCourtFeeError(null);
+                                            }}
+                                            className={`w-24 px-2 py-0.5 bg-white border ${draftCourtFeeError ? 'border-red-500 focus:border-red-500' : 'border-[#dce9ff] focus:border-[#006948]'} rounded text-xs font-extrabold text-[#006948] text-right focus:outline-none transition-colors`}
+                                          />
+                                          <span className="font-bold text-[#006948]">đ</span>
+                                        </div>
+                                        {draftCourtFeeError && <span className="text-[10px] text-red-500 font-bold">{draftCourtFeeError}</span>}
                                       </div>
                                     </td>
                                     <td className="px-3.5 py-2.5 text-center text-[#6d7a72] italic">
@@ -1149,7 +1246,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                           </div>
                                         </td>
                                         <td className="px-3.5 py-2 text-right font-medium text-[#3d4a42]">
-                                          {formatCurrency(it.price)}
+                                          {formatCurrency(it.price)} <span className="text-xs">đ</span>
                                         </td>
                                         <td className="px-3.5 py-2 text-center">
                                           <div className="inline-flex items-center bg-[#eff4ff] border border-[#dce9ff] rounded-lg p-0.5 gap-1">
@@ -1173,7 +1270,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                           </div>
                                         </td>
                                         <td className="px-3.5 py-2 text-right font-bold text-[#006948]">
-                                          {formatCurrency(it.price * it.quantity)} đ
+                                          {formatCurrency(it.price * it.quantity)} <span className="text-xs">đ</span>
                                         </td>
                                         <td className="px-3.5 py-2 text-center">
                                           <button
@@ -1194,14 +1291,14 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                             {/* Mini actions & footer */}
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
                               {/* Left: Quick add item button */}
-                              <div className="relative">
+                              <div className="relative" ref={draftDropdownRef}>
                                 <button
                                   type="button"
                                   onClick={() => setShowDraftCatalogDropdown(!showDraftCatalogDropdown)}
                                   className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#eff4ff] hover:bg-[#dce9ff] text-[#006948] font-bold text-xs rounded-xl border border-[#85f8c4] transition-colors cursor-pointer"
                                 >
                                   <Plus className="w-3.5 h-3.5" />
-                                  <span>+ Thêm món / nước</span>
+                                  <span>thêm món / nước</span>
                                 </button>
 
                                 {/* Dropdown menu for catalog */}
@@ -1211,7 +1308,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                       Chọn món thêm vào:
                                     </span>
                                     {catalogItems
-                                      .filter((c) => c.category !== 'court')
+                                      .filter((c) => c.category !== 'court' && !editingDraft?.items.some(it => it.name === c.name))
                                       .map((cat) => (
                                         <button
                                           key={cat.id}
@@ -1239,22 +1336,20 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setEditingDraft({ ...editingDraft, paymentMethod: 'qr' })}
-                                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                                      editingDraft.paymentMethod === 'qr'
-                                        ? 'bg-[#006948] text-white font-bold shadow-2xs'
-                                        : 'text-[#545c72] hover:text-[#0b1c30]'
-                                    }`}
+                                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${editingDraft.paymentMethod === 'qr'
+                                      ? 'bg-[#006948] text-white font-bold shadow-2xs'
+                                      : 'text-[#545c72] hover:text-[#0b1c30]'
+                                      }`}
                                   >
                                     QR
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => setEditingDraft({ ...editingDraft, paymentMethod: 'cash' })}
-                                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                                      editingDraft.paymentMethod === 'cash'
-                                        ? 'bg-[#006948] text-white font-bold shadow-2xs'
-                                        : 'text-[#545c72] hover:text-[#0b1c30]'
-                                    }`}
+                                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${editingDraft.paymentMethod === 'cash'
+                                      ? 'bg-[#006948] text-white font-bold shadow-2xs'
+                                      : 'text-[#545c72] hover:text-[#0b1c30]'
+                                      }`}
                                   >
                                     Tiền mặt
                                   </button>
@@ -1269,35 +1364,15 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
                                 </div>
 
                                 {/* Nút Xóa bill ở thanh thao tác dưới */}
-                                {confirmDeleteId === inv.id ? (
-                                  <div className="flex items-center gap-1.5 bg-[#ffdad6] px-2.5 py-1 rounded-xl border border-[#ffb4ab] animate-fadeIn">
-                                    <span className="text-xs font-bold text-[#ba1a1a]">Xác nhận xóa?</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteDraftInvoice(inv.id)}
-                                      className="px-2.5 py-1 bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                                    >
-                                      Xóa
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => setConfirmDeleteId(null)}
-                                      className="px-2 py-1 bg-white hover:bg-[#f8f9ff] text-[#3d4a42] text-xs font-bold rounded-lg transition-colors cursor-pointer"
-                                    >
-                                      Hủy
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    onClick={() => setConfirmDeleteId(inv.id)}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#ffdad6]/70 hover:bg-[#ffdad6] text-[#ba1a1a] font-bold text-xs rounded-xl border border-[#ffb4ab]/60 transition-colors cursor-pointer"
-                                    title="Xóa vĩnh viễn hóa đơn này khỏi hệ thống"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                    <span>Xóa bill</span>
-                                  </button>
-                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmDeleteId(inv.id)}
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#ffdad6]/70 hover:bg-[#ffdad6] text-[#ba1a1a] font-bold text-xs rounded-xl border border-[#ffb4ab]/60 transition-colors cursor-pointer"
+                                  title="Xóa vĩnh viễn hóa đơn này khỏi hệ thống"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Xóa bill</span>
+                                </button>
 
                                 {/* Save & Cancel */}
                                 <button
@@ -1369,7 +1444,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
 
             <div className="overflow-y-auto flex flex-col gap-2 pr-1 max-h-[50vh]">
               {catalogItems
-                .filter((cat) => cat.category !== 'court')
+                .filter((cat) => cat.category !== 'court' && !items.some(it => it.name === cat.name))
                 .map((cat) => (
                   <div
                     key={cat.id}
@@ -1400,6 +1475,19 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Xác nhận xóa hóa đơn"
+        message="Bạn có chắc chắn muốn xóa hóa đơn nháp này không? Thao tác này không thể hoàn tác."
+        confirmText="Xóa hóa đơn"
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            handleDeleteDraftInvoice(confirmDeleteId);
+          }
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 };

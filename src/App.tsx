@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { DailyClosingView } from './components/DailyClosingView';
 import { DailyClosingSummaryModal } from './components/DailyClosingSummaryModal';
 import { CourtOverviewView } from './components/CourtOverviewView';
 import { CourtDetailView } from './components/CourtDetailView';
@@ -12,118 +11,125 @@ import { ProductCatalogView } from './components/ProductCatalogView';
 import { QuickBillModal } from './components/QuickBillModal';
 import { QuickExpenseModal } from './components/QuickExpenseModal';
 import { InvoicePrintModal } from './components/InvoicePrintModal';
-import { INITIAL_COURTS, INITIAL_INVOICES, INITIAL_EXPENSES, ITEM_CATALOG } from './data/mockData';
 import { ActiveTab, Court, Invoice, Expense, CatalogItem } from './types';
 
+const API_BASE = 'http://localhost:3001/api';
+
 export default function App() {
-  // Single-user end of day workflow: 'tong-ket-so' is the primary home screen
-  const [activeTab, setActiveTab] = useState<ActiveTab>('tong-ket-so');
-  const [courts, setCourts] = useState<Court[]>(INITIAL_COURTS);
-  const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
-  const [expenses, setExpenses] = useState<Expense[]>(INITIAL_EXPENSES);
-  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>(ITEM_CATALOG);
+  const [activeTab, setActiveTab] = useState<ActiveTab>('so-do-san');
+  const [courts, setCourts] = useState<Court[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [catalogItems, setCatalogItems] = useState<CatalogItem[]>([]);
   const [selectedCourt, setSelectedCourt] = useState<Court | null>(null);
 
-  // Modals state
   const [isQuickBillOpen, setIsQuickBillOpen] = useState(false);
   const [isQuickExpenseOpen, setIsQuickExpenseOpen] = useState(false);
   const [printableInvoice, setPrintableInvoice] = useState<Invoice | null>(null);
   const [isDailyClosingModalOpen, setIsDailyClosingModalOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Overall today's revenue calculation
+  useEffect(() => {
+    Promise.all([
+      fetch(`${API_BASE}/courts`).then(res => res.json()),
+      fetch(`${API_BASE}/invoices`).then(res => res.json()),
+      fetch(`${API_BASE}/expenses`).then(res => res.json()),
+      fetch(`${API_BASE}/catalog`).then(res => res.json())
+    ]).then(([courtsData, invoicesData, expensesData, catalogData]) => {
+      setCourts(courtsData);
+      setInvoices(invoicesData);
+      setExpenses(expensesData);
+      setCatalogItems(catalogData);
+    }).catch(err => console.error("Failed to fetch initial data", err));
+  }, []);
+
   const todayRevenue = invoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
 
-  // Handle saving new invoice
-  const handleSaveInvoice = (newInv: Invoice) => {
-    setInvoices((prev) => [newInv, ...prev]);
-
-    // Update court revenue
-    setCourts((prev) =>
-      prev.map((c) => {
-        if (c.id === newInv.courtId) {
-          return {
-            ...c,
-            revenueToday: c.revenueToday + newInv.totalAmount,
-            invoicesCount: c.invoicesCount + 1,
-            status: 'occupied',
-          };
-        }
-        return c;
-      })
-    );
-  };
-
-  // Handle updating existing invoice
-  const handleUpdateInvoice = (updatedInv: Invoice) => {
-    setInvoices((prev) => prev.map((inv) => (inv.id === updatedInv.id ? updatedInv : inv)));
-
-    // Recalculate court revenue
-    setCourts((prev) =>
-      prev.map((c) => {
-        if (c.id === updatedInv.courtId) {
-          const courtInvoices = invoices
-            .map((inv) => (inv.id === updatedInv.id ? updatedInv : inv))
-            .filter((inv) => inv.courtId === c.id);
-          const newRevenue = courtInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
-          return {
-            ...c,
-            revenueToday: newRevenue,
-          };
-        }
-        return c;
-      })
-    );
-  };
-
-  // Handle deleting invoice
-  const handleDeleteInvoice = (invoiceId: string) => {
-    const targetInv = invoices.find((inv) => inv.id === invoiceId);
-    setInvoices((prev) => prev.filter((inv) => inv.id !== invoiceId));
-
-    if (targetInv) {
-      setCourts((prev) =>
-        prev.map((c) => {
-          if (c.id === targetInv.courtId) {
-            const remainingCourtInvoices = invoices.filter(
-              (inv) => inv.id !== invoiceId && inv.courtId === c.id
-            );
-            const newRevenue = remainingCourtInvoices.reduce(
-              (sum, inv) => sum + inv.totalAmount,
-              0
-            );
-            return {
-              ...c,
-              revenueToday: newRevenue,
-              invoicesCount: Math.max(0, remainingCourtInvoices.length),
-            };
-          }
-          return c;
-        })
-      );
+  const handleSaveInvoice = async (newInv: Invoice) => {
+    const res = await fetch(`${API_BASE}/invoices`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newInv)
+    });
+    if (res.ok) {
+      const savedInvoice = await res.json();
+      setInvoices(prev => [savedInvoice, ...prev]);
+      const courtsRes = await fetch(`${API_BASE}/courts`);
+      setCourts(await courtsRes.json());
     }
   };
 
-  // Handle adding new expense
-  const handleAddExpense = (newExp: Expense) => {
-    setExpenses((prev) => [newExp, ...prev]);
+  const handleUpdateInvoice = async (updatedInv: Invoice) => {
+    const res = await fetch(`${API_BASE}/invoices/${updatedInv.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updatedInv)
+    });
+    if (res.ok) {
+      const savedInvoice = await res.json();
+      setInvoices(prev => prev.map(inv => inv.id === savedInvoice.id ? savedInvoice : inv));
+      const courtsRes = await fetch(`${API_BASE}/courts`);
+      setCourts(await courtsRes.json());
+    }
   };
 
-  // Handle deleting expense
-  const handleDeleteExpense = (id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+  const handleDeleteInvoice = async (invoiceId: string) => {
+    const res = await fetch(`${API_BASE}/invoices/${invoiceId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setInvoices(prev => prev.filter(inv => inv.id !== invoiceId));
+      const courtsRes = await fetch(`${API_BASE}/courts`);
+      setCourts(await courtsRes.json());
+    }
   };
 
-  // Handle catalog product items
-  const handleAddCatalogItem = (newItem: CatalogItem) => {
-    setCatalogItems((prev) => [newItem, ...prev]);
+  const handleAddExpense = async (newExp: Expense) => {
+    const res = await fetch(`${API_BASE}/expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newExp)
+    });
+    if (res.ok) {
+      const savedExpense = await res.json();
+      setExpenses(prev => [savedExpense, ...prev]);
+    }
   };
 
-  const handleUpdateCatalogItem = (updated: CatalogItem) => {
-    setCatalogItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
+  const handleDeleteExpense = async (id: string) => {
+    const res = await fetch(`${API_BASE}/expenses/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    }
   };
 
-  const handleDeleteCatalogItem = (id: string) => {
-    setCatalogItems((prev) => prev.filter((item) => item.id !== id));
+  const handleAddCatalogItem = async (newItem: CatalogItem) => {
+    const res = await fetch(`${API_BASE}/catalog`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newItem)
+    });
+    if (res.ok) {
+      const savedItem = await res.json();
+      setCatalogItems(prev => [savedItem, ...prev]);
+    }
+  };
+
+  const handleUpdateCatalogItem = async (updated: CatalogItem) => {
+    const res = await fetch(`${API_BASE}/catalog/${updated.id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updated)
+    });
+    if (res.ok) {
+      const savedItem = await res.json();
+      setCatalogItems(prev => prev.map(item => item.id === savedItem.id ? savedItem : item));
+    }
+  };
+
+  const handleDeleteCatalogItem = async (id: string) => {
+    const res = await fetch(`${API_BASE}/catalog/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      setCatalogItems(prev => prev.filter(item => item.id !== id));
+    }
   };
 
   const handleCourtSelect = (court: Court) => {
@@ -133,47 +139,37 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f8f9ff] text-[#0b1c30] flex flex-col font-sans antialiased selection:bg-[#85f8c4] selection:text-[#005137]">
-      {/* Top Header - Tailored for 1 single owner/manager */}
       <Header
         todayRevenue={todayRevenue}
         onOpenClosingReport={() => setIsDailyClosingModalOpen(true)}
         selectedDate="24/10/2024"
+        onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      {/* Main Layout Shell */}
-      <div className="flex pt-16 min-h-screen">
-        {/* Persistent Left Sidebar */}
+      <div className="flex pt-16 min-h-screen relative">
         <Sidebar
           activeTab={activeTab}
           onTabChange={(tab) => {
             setActiveTab(tab);
-            // If switching away from individual court detail, reset
             if (tab !== 'so-do-san') {
               setSelectedCourt(null);
             }
+            setIsSidebarOpen(false); // Close sidebar on mobile after tab select
           }}
-          activeCourtsCount={courts.filter((c) => c.status === 'occupied').length || 7}
-          totalCourtsCount={courts.length || 7}
+          activeCourtsCount={courts.filter((c) => c.status === 'occupied').length || 0}
+          totalCourtsCount={courts.length || 0}
+          isOpen={isSidebarOpen}
         />
 
-        {/* Content View Area */}
-        <main className="flex-1 ml-64 p-5 sm:p-8 overflow-y-auto max-w-7xl">
-          {/* TAB 1 (PRIMARY): TỔNG KẾT SỔ CUỐI NGÀY & NHẬP TỪNG BILL */}
-          {activeTab === 'tong-ket-so' && (
-            <DailyClosingView
-              courts={courts}
-              invoices={invoices}
-              expenses={expenses}
-              catalogItems={catalogItems}
-              onSaveInvoice={handleSaveInvoice}
-              onUpdateInvoice={handleUpdateInvoice}
-              onDeleteInvoice={handleDeleteInvoice}
-              onPrintInvoice={(inv) => setPrintableInvoice(inv)}
-              onOpenQuickExpense={() => setIsQuickExpenseOpen(true)}
-            />
-          )}
+        {/* Overlay for mobile sidebar */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-30 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
 
-          {/* TAB 2: SỔ HÓA ĐƠN CHI TIẾT */}
+        <main className="flex-1 lg:ml-64 p-3 sm:p-5 lg:p-8 overflow-y-auto w-full transition-all duration-300">
           {activeTab === 'thu-chi-san' && (
             <CourtInvoicesView
               invoices={invoices}
@@ -186,7 +182,6 @@ export default function App() {
             />
           )}
 
-          {/* TAB 3: THU - CHI VẬN HÀNH */}
           {activeTab === 'thu-chi-van-hanh' && (
             <OperatingExpensesView
               expenses={expenses}
@@ -195,10 +190,8 @@ export default function App() {
             />
           )}
 
-          {/* TAB 4: BÁO CÁO & THỐNG KÊ DOANH THU */}
           {activeTab === 'bao-cao-thong-ke' && <ReportsView />}
 
-          {/* TAB 5: BẢNG GIÁ & DỊCH VỤ SÂN */}
           {activeTab === 'quan-ly-san-pham' && (
             <ProductCatalogView
               items={catalogItems}
@@ -208,7 +201,6 @@ export default function App() {
             />
           )}
 
-          {/* TAB 6: SƠ ĐỒ SÂN (THAM KHẢO) */}
           {activeTab === 'so-do-san' && (
             <>
               {selectedCourt ? (
@@ -227,6 +219,7 @@ export default function App() {
               ) : (
                 <CourtOverviewView
                   courts={courts}
+                  invoices={invoices}
                   onSelectCourt={handleCourtSelect}
                   onQuickBillClick={() => setIsQuickBillOpen(true)}
                   onQuickExpenseClick={() => setIsQuickExpenseOpen(true)}
@@ -237,7 +230,6 @@ export default function App() {
         </main>
       </div>
 
-      {/* Quick Bill Modal (if triggered from other places) */}
       <QuickBillModal
         courts={courts}
         catalogItems={catalogItems}
@@ -247,20 +239,17 @@ export default function App() {
         onPrintInvoice={(inv) => setPrintableInvoice(inv)}
       />
 
-      {/* Quick Expense Modal */}
       <QuickExpenseModal
         isOpen={isQuickExpenseOpen}
         onClose={() => setIsQuickExpenseOpen(false)}
         onAddExpense={handleAddExpense}
       />
 
-      {/* Invoice Print & Receipt Modal */}
       <InvoicePrintModal
         invoice={printableInvoice}
         onClose={() => setPrintableInvoice(null)}
       />
 
-      {/* End-of-Day Closing Statement Modal */}
       <DailyClosingSummaryModal
         isOpen={isDailyClosingModalOpen}
         onClose={() => setIsDailyClosingModalOpen(false)}

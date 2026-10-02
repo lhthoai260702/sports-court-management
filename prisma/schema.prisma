@@ -1,0 +1,110 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Court {
+  id            String    @id @default(uuid())
+  code          String    @unique
+  name          String
+  type          String
+  subType       String
+  description   String
+  revenueToday  Float     @default(0)
+  invoicesCount Int       @default(0)
+  status        String    @default("available")
+  hourlyRate    Float
+  timeSlot      String?
+  isFeatured    Boolean   @default(false)
+  invoices      Invoice[]
+}
+
+model CatalogItem {
+  id       String @id @default(uuid())
+  name     String
+  price    Float
+  category String
+  unit     String
+}
+
+model Invoice {
+  id            String     @id @default(uuid())
+  courtId       String
+  court         Court      @relation(fields: [courtId], references: [id])
+  courtName     String
+  timeSlot      String
+  customerName  String
+  note          String?
+  totalAmount   Float
+  courtFee      Float
+  serviceFee    Float
+  paymentMethod String
+  status        String     @default("paid")
+  createdAt     String
+  items         BillItem[]
+}
+
+model BillItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  name        String
+  price       Float
+  quantity    Int
+  category    String
+  manualTotal Float?
+  rentalTime  String?
+}
+
+model Expense {
+  id       String  @id @default(uuid())
+  title    String
+  category String
+  amount   Float
+  creator  String
+  date     String
+  note     String?
+}
+
+model DailyReportDetail {
+  id             String                @id @default(uuid())
+  date           String                @unique
+  dateLabel      String
+  isToday        Boolean               @default(false)
+  bookingsCount  Int
+  totalRevenue   Float
+  totalExpense   Float
+  netProfit      Float
+  status         String
+  summaryText    String?
+  bills          ReportBillItem[]
+  expenses       ReportExpenseItem[]
+}
+
+model ReportBillItem {
+  id           String            @id @default(uuid())
+  reportId     String
+  report       DailyReportDetail @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  billId       String
+  time         String
+  court        String
+  customer     String
+  courtFee     Float
+  serviceFee   Float
+  total        Float
+}
+
+model ReportExpenseItem {
+  id           String            @id @default(uuid())
+  reportId     String
+  report       DailyReportDetail @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  expenseId    String
+  title        String
+  note         String
+  creator      String
+  amount       Float
+}

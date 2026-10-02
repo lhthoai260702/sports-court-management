@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Check,
@@ -16,6 +16,9 @@ import {
   Layers,
 } from 'lucide-react';
 import { Invoice, Court, CatalogItem, BillItem } from '../types';
+import { TimeRangePicker } from './TimeRangePicker';
+import { CurrencyInput } from './CurrencyInput';
+import { ConfirmModal } from './ConfirmModal';
 
 interface InvoiceDetailEditModalProps {
   isOpen: boolean;
@@ -53,6 +56,20 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
 
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showCatalogDropdown, setShowCatalogDropdown] = useState(false);
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowCatalogDropdown(false);
+      }
+    };
+    if (showCatalogDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showCatalogDropdown]);
 
   // Sync state when invoice changes
   useEffect(() => {
@@ -122,20 +139,20 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
     const existingCourtItem = (invoice.items || []).find((it) => it.category === 'court');
     const courtItem: BillItem = existingCourtItem
       ? {
-          ...existingCourtItem,
-          price: courtFee,
-          manualTotal: courtFee,
-          rentalTime: timeSlot,
-        }
+        ...existingCourtItem,
+        price: courtFee,
+        manualTotal: courtFee,
+        rentalTime: timeSlot,
+      }
       : {
-          id: `court-${Date.now()}`,
-          name: `Tiền giờ thuê sân (${timeSlot})`,
-          price: courtFee,
-          quantity: 1,
-          category: 'court',
-          manualTotal: courtFee,
-          rentalTime: timeSlot,
-        };
+        id: `court-${Date.now()}`,
+        name: `Tiền giờ thuê sân (${timeSlot})`,
+        price: courtFee,
+        quantity: 1,
+        category: 'court',
+        manualTotal: courtFee,
+        rentalTime: timeSlot,
+      };
 
     const updatedInvoice: Invoice = {
       ...invoice,
@@ -245,12 +262,11 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
               <label className="block text-xs font-bold text-[#3d4a42] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5 text-[#006948]" /> Khung giờ chơi
               </label>
-              <input
-                type="text"
+              <TimeRangePicker
                 value={timeSlot}
-                onChange={(e) => setTimeSlot(e.target.value)}
+                onChange={(val) => setTimeSlot(val)}
                 placeholder="VD: 17:00 - 19:00"
-                className="w-full px-3 py-2.5 bg-[#eff4ff] border border-[#dce9ff] rounded-xl text-sm font-medium text-[#0b1c30] focus:bg-white focus:border-[#006948] focus:outline-none transition-all"
+                className="w-full px-3 py-2.5 bg-[#eff4ff] border border-[#dce9ff] rounded-xl text-sm font-medium text-[#0b1c30] focus:bg-white focus:border-[#006948] focus:outline-none transition-all cursor-pointer"
               />
             </div>
 
@@ -263,22 +279,20 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('qr')}
-                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    paymentMethod === 'qr'
+                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${paymentMethod === 'qr'
                       ? 'bg-[#eff4ff] border-[#0051d5] text-[#0051d5] shadow-xs'
                       : 'bg-white border-[#dce9ff] text-[#545c72] hover:bg-[#eff4ff]'
-                  }`}
+                    }`}
                 >
                   <QrCode className="w-4 h-4" /> Chuyển khoản QR
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('cash')}
-                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                    paymentMethod === 'cash'
+                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${paymentMethod === 'cash'
                       ? 'bg-[#85f8c4]/20 border-[#006948] text-[#006948] shadow-xs'
                       : 'bg-white border-[#dce9ff] text-[#545c72] hover:bg-[#eff4ff]'
-                  }`}
+                    }`}
                 >
                   <Banknote className="w-4 h-4" /> Tiền mặt
                 </button>
@@ -295,12 +309,9 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
               <span className="text-xs text-[#6d7a72]">Chỉnh sửa trực tiếp số tiền</span>
             </div>
             <div className="relative">
-              <input
-                type="number"
-                min="0"
-                step="10000"
+              <CurrencyInput
                 value={courtFee}
-                onChange={(e) => setCourtFee(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                onChange={(val) => setCourtFee(Math.max(0, Number(val) || 0))}
                 className="w-full px-4 py-2.5 bg-[#eff4ff] border border-[#dce9ff] rounded-xl text-base font-extrabold text-[#006948] focus:bg-white focus:border-[#006948] focus:outline-none transition-all pr-12"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-[#6d7a72]">
@@ -322,14 +333,14 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
               </div>
 
               {/* Add item button / dropdown */}
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <button
                   type="button"
                   onClick={() => setShowCatalogDropdown(!showCatalogDropdown)}
                   className="flex items-center gap-1 px-3 py-1.5 bg-[#006948] hover:bg-[#00855d] text-white text-xs font-bold rounded-xl transition-colors cursor-pointer shadow-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>+ Thêm món</span>
+                  <span>thêm món</span>
                 </button>
 
                 {showCatalogDropdown && (
@@ -352,7 +363,7 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
                             </div>
                           </div>
                           <span className="text-xs font-black text-[#006948] bg-[#eff4ff] px-2 py-1 rounded-lg">
-                            + Thêm
+                            thêm
                           </span>
                         </button>
                       ))
@@ -473,36 +484,16 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
 
         {/* Modal Footer */}
         <div className="px-6 py-4 bg-[#f8f9ff] border-t border-[#eff4ff] flex flex-col sm:flex-row items-center justify-between gap-3">
-          {/* Delete Button with Confirmation */}
-          {confirmDelete ? (
-            <div className="flex items-center gap-2 bg-[#ffdad6] px-3 py-1.5 rounded-xl border border-[#ffb4ab] animate-fadeIn w-full sm:w-auto">
-              <span className="text-xs font-bold text-[#ba1a1a]">Xác nhận xóa HĐ này?</span>
-              <button
-                type="button"
-                onClick={handleDelete}
-                className="px-3 py-1 bg-[#ba1a1a] hover:bg-[#93000a] text-white text-xs font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                Xóa ngay
-              </button>
-              <button
-                type="button"
-                onClick={() => setConfirmDelete(false)}
-                className="px-2.5 py-1 bg-white hover:bg-[#f8f9ff] text-[#3d4a42] text-xs font-bold rounded-lg transition-colors cursor-pointer"
-              >
-                Hủy
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6] rounded-xl transition-colors cursor-pointer w-full sm:w-auto justify-center"
-              title="Xóa vĩnh viễn hóa đơn này khỏi hệ thống"
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>Xóa Hóa Đơn</span>
-            </button>
-          )}
+          {/* Delete Button */}
+          <button
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-[#ba1a1a] hover:bg-[#ffdad6] rounded-xl transition-colors cursor-pointer w-full sm:w-auto justify-center"
+            title="Xóa vĩnh viễn hóa đơn này khỏi hệ thống"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Xóa Hóa Đơn</span>
+          </button>
 
           {/* Cancel & Save Buttons */}
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
@@ -524,6 +515,15 @@ export const InvoiceDetailEditModal: React.FC<InvoiceDetailEditModalProps> = ({
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmDelete}
+        title="Xác nhận xóa hóa đơn"
+        message={`Bạn có chắc chắn muốn xóa hóa đơn này không? Thao tác này không thể hoàn tác.`}
+        confirmText="Xóa hóa đơn"
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   );
 };

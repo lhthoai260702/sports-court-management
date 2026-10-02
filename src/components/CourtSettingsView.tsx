@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sliders, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Court } from '../types';
+import { CurrencyInput } from './CurrencyInput';
 
 interface CourtSettingsViewProps {
   courts: Court[];
@@ -142,14 +143,12 @@ export const CourtSettingsView: React.FC<CourtSettingsViewProps> = ({
                 <label className="text-xs font-bold uppercase text-[#3d4a42]">
                   Đơn giá thuê sân / giờ (VNĐ)
                 </label>
-                <input
-                  type="number"
-                  step="5000"
+                <CurrencyInput
                   value={editingCourt.hourlyRate}
-                  onChange={(e) =>
+                  onChange={(val) =>
                     setEditingCourt({
                       ...editingCourt,
-                      hourlyRate: parseInt(e.target.value) || 0,
+                      hourlyRate: val || 0,
                     })
                   }
                   className="px-3.5 py-2 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl text-sm"

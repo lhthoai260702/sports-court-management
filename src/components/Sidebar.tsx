@@ -15,11 +15,13 @@ interface SidebarProps {
   onTabChange: (tab: ActiveTab) => void;
   activeCourtsCount?: number;
   totalCourtsCount?: number;
+  isOpen?: boolean;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
   onTabChange,
+  isOpen = false,
 }) => {
   const navItems: {
     id: ActiveTab;
@@ -28,10 +30,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
     icon: React.ComponentType<{ className?: string }>;
   }[] = [
     {
-      id: 'tong-ket-so',
-      label: 'Tổng Kết Sổ Cuối Ngày',
-      sublabel: 'Nhập bill & đối soát tiền',
-      icon: FileSpreadsheet,
+      id: 'so-do-san',
+      label: 'Sơ Đồ Sân',
+      sublabel: 'Tổng quan sân & bảng giá',
+      icon: LayoutGrid,
     },
     {
       id: 'thu-chi-san',
@@ -57,16 +59,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'Giá nước, cầu, thuê sân',
       icon: Package,
     },
-    {
-      id: 'so-do-san',
-      label: 'Sơ Đồ Sân (Tham Khảo)',
-      sublabel: 'Tổng quan sân & bảng giá',
-      icon: LayoutGrid,
-    },
   ];
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-[#e5eeff] shadow-[1px_0_8px_rgba(0,0,0,0.03)] z-40 flex flex-col justify-between p-4 overflow-y-auto">
+    <aside className={`fixed left-0 top-16 bottom-0 w-64 bg-white border-r border-[#e5eeff] shadow-[1px_0_8px_rgba(0,0,0,0.03)] z-40 flex flex-col justify-between p-4 overflow-y-auto transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
       <div className="flex flex-col gap-4">
         {/* Section title */}
         <div className="px-2 pt-1">
@@ -115,16 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Helpful tip for single user end of day workflow */}
-      <div className="bg-[#eff4ff] p-3.5 rounded-2xl border border-[#dce9ff] flex flex-col gap-2">
-        <div className="flex items-center gap-1.5 text-[#0051d5] text-xs font-bold">
-          <Info className="w-3.5 h-3.5" />
-          <span>Gợi ý chốt ca</span>
-        </div>
-        <p className="text-[11px] text-[#545c72] leading-relaxed">
-          Cuối ngày, bạn gom lại các phiếu ghi giờ hoặc hoá đơn chuyển khoản rồi nhập tuần tự vào mục <strong>"Tổng Kết Sổ Cuối Ngày"</strong> để đối chiếu tiền két.
-        </p>
-      </div>
+
     </aside>
   );
 };

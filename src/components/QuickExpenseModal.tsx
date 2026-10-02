@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, X } from 'lucide-react';
 import { Expense } from '../types';
+import { CurrencyInput } from './CurrencyInput';
 
 interface QuickExpenseModalProps {
   isOpen: boolean;
@@ -16,13 +17,31 @@ export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({
   if (!isOpen) return null;
 
   const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | ''>('');
   const [category, setCategory] = useState<Expense['category']>('water');
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const num = parseInt(amount);
-    if (!title.trim() || isNaN(num) || num <= 0) return;
+    const num = Number(amount);
+
+    let hasError = false;
+    if (!title.trim()) {
+      setTitleError('Vui lòng nhập nội dung chi!');
+      hasError = true;
+    } else {
+      setTitleError(null);
+    }
+
+    if (isNaN(num) || num <= 0) {
+      setAmountError('Vui lòng nhập số tiền chi!');
+      hasError = true;
+    } else {
+      setAmountError(null);
+    }
+
+    if (hasError) return;
 
     const newExp: Expense = {
       id: `PC-${Date.now().toString().slice(-4)}`,
@@ -53,35 +72,38 @@ export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({
             ✕
           </button>
         </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold uppercase text-[#3d4a42]">
               Nội dung chi / Khoản chi *
             </label>
             <input
               type="text"
-              required
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                if (titleError) setTitleError(null);
+              }}
               placeholder="Vd: Mua đá lạnh ca sáng, Thay bóng đèn sân 3..."
-              className="px-3.5 py-2 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl text-sm focus:outline-none focus:border-[#ba1a1a]"
+              className={`px-3.5 py-2 bg-[#f8f9ff] border ${titleError ? 'border-red-500 focus:border-red-500' : 'border-[#dce9ff] focus:border-[#ba1a1a]'} rounded-xl text-sm focus:outline-none`}
             />
+            {titleError && <span className="text-[10px] text-red-500 font-bold">{titleError}</span>}
           </div>
 
           <div className="flex flex-col gap-1">
             <label className="text-xs font-bold uppercase text-[#3d4a42]">
               Số tiền chi (VNĐ) *
             </label>
-            <input
-              type="number"
-              required
-              min="1000"
+            <CurrencyInput
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="Vd: 150000"
-              className="px-3.5 py-2 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl text-sm focus:outline-none focus:border-[#ba1a1a]"
+              onChange={(val) => {
+                setAmount(val);
+                if (amountError) setAmountError(null);
+              }}
+              placeholder="Vd: 150.000"
+              className={`px-3.5 py-2 bg-[#f8f9ff] border ${amountError ? 'border-red-500 focus:border-red-500' : 'border-[#dce9ff] focus:border-[#ba1a1a]'} rounded-xl text-sm focus:outline-none w-full`}
             />
+            {amountError && <span className="text-[10px] text-red-500 font-bold">{amountError}</span>}
           </div>
 
           <div className="flex flex-col gap-1">
@@ -110,13 +132,14 @@ export const QuickExpenseModal: React.FC<QuickExpenseModalProps> = ({
               Hủy
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={handleSubmit}
               className="px-5 py-2 bg-[#ba1a1a] hover:bg-[#93000a] text-white rounded-xl text-sm font-bold shadow-sm"
             >
               Ghi Nhận Phiếu Chi
             </button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

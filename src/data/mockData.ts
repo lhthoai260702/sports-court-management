@@ -98,6 +98,7 @@ export const INITIAL_COURTS: Court[] = [
 
 export const CATALOG_ITEMS: CatalogItem[] = [
   { id: 'cat-01', name: 'Nước suối Aquafina 500ml', price: 15000, category: 'drink', unit: 'chai' },
+  { id: 'cat-01a', name: 'Trà đá', price: 5000, category: 'drink', unit: 'ly' },
   { id: 'cat-02', name: 'Revive chanh muối bù khoáng', price: 20000, category: 'drink', unit: 'chai' },
   { id: 'cat-03', name: 'Pocari Sweat bù điện giải 500ml', price: 25000, category: 'drink', unit: 'chai' },
   { id: 'cat-04', name: 'Nước tăng lực Redbull Thái', price: 20000, category: 'drink', unit: 'lon' },
@@ -105,6 +106,7 @@ export const CATALOG_ITEMS: CatalogItem[] = [
   { id: 'cat-06', name: 'Bánh mì trứng kẹp xúc xích', price: 25000, category: 'food', unit: 'phần' },
   { id: 'cat-07', name: 'Mì ly Omachi xúc xích', price: 20000, category: 'food', unit: 'ly' },
   { id: 'cat-08', name: 'Bóng Pickleball Franklin X-40', price: 35000, category: 'accessory', unit: 'quả' },
+  { id: 'cat-08a', name: 'Quả cầu lông', price: 25000, category: 'accessory', unit: 'quả' },
   { id: 'cat-09', name: 'Ống cầu lông Victor Gold', price: 280000, category: 'accessory', unit: 'ống' },
   { id: 'cat-10', name: 'Ống cầu lông Yonex Aerosensa 50', price: 320000, category: 'accessory', unit: 'ống' },
   { id: 'cat-11', name: 'Thuê vợt Pickleball carbon', price: 50000, category: 'accessory', unit: 'lượt' },

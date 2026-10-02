@@ -15,6 +15,8 @@ import {
   DollarSign,
 } from 'lucide-react';
 import { CatalogItem } from '../types';
+import { CurrencyInput } from './CurrencyInput';
+import { ConfirmModal } from './ConfirmModal';
 
 interface ProductCatalogViewProps {
   items: CatalogItem[];
@@ -33,6 +35,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState<CatalogItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Form state
@@ -96,10 +99,11 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
     setIsModalOpen(false);
   };
 
-  const handleDelete = (item: CatalogItem) => {
-    if (window.confirm(`Bạn có chắc chắn muốn xóa "${item.name}" khỏi danh mục bán hàng?`)) {
-      onDeleteItem(item.id);
-      showToast(`Đã xóa "${item.name}" khỏi danh mục!`);
+  const handleDeleteConfirm = () => {
+    if (confirmDeleteItem) {
+      onDeleteItem(confirmDeleteItem.id);
+      showToast(`Đã xóa "${confirmDeleteItem.name}" khỏi danh mục!`);
+      setConfirmDeleteItem(null);
     }
   };
 
@@ -185,7 +189,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
           className="flex items-center gap-2 px-5 py-2.5 bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm rounded-xl shadow-sm transition-all cursor-pointer w-fit"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Thêm Sản Phẩm Mới</span>
+          <span>thêm Sản Phẩm Mới</span>
         </button>
       </div>
 
@@ -274,11 +278,10 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
               key={cat.id}
               type="button"
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                selectedCategory === cat.id
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${selectedCategory === cat.id
                   ? 'bg-[#006948] text-white shadow-xs'
                   : 'bg-[#eff4ff] text-[#545c72] hover:bg-[#dce9ff]'
-              }`}
+                }`}
             >
               {cat.label}
             </button>
@@ -296,7 +299,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
             </h2>
           </div>
           <span className="text-xs text-[#6d7a72]">
-            Các sản phẩm này sẽ hiển thị trong mục "+ Thêm món / dịch vụ khác" khi thu ngân tính tiền
+            Các sản phẩm này sẽ hiển thị trong mục "thêm món / dịch vụ khác" khi thu ngân tính tiền
           </span>
         </div>
 
@@ -350,7 +353,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => handleDelete(item)}
+                        onClick={() => setConfirmDeleteItem(item)}
                         className="p-1.5 rounded-lg text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors cursor-pointer"
                         title="Xóa sản phẩm"
                       >
@@ -455,13 +458,10 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                   Giá Bán Niêm Yết (VNĐ) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="1000"
+                  <CurrencyInput
                     required
                     value={formPrice}
-                    onChange={(e) => setFormPrice(parseInt(e.target.value, 10) || 0)}
+                    onChange={(val) => setFormPrice(Number(val) || 0)}
                     className="w-full pl-3.5 pr-8 py-2 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl text-base font-extrabold text-[#006948] focus:outline-none focus:border-[#006948]"
                   />
                   <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#006948]">
@@ -483,13 +483,22 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                   type="submit"
                   className="px-5 py-2 bg-[#006948] hover:bg-[#00855d] text-white font-bold text-xs rounded-xl shadow-sm cursor-pointer"
                 >
-                  {editingItem ? 'Lưu' : '+ Thêm Sản Phẩm'}
+                  {editingItem ? 'Lưu' : 'thêm Sản Phẩm'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteItem}
+        title="Xác nhận xóa sản phẩm"
+        message={`Bạn có chắc chắn muốn xóa "${confirmDeleteItem?.name}" khỏi danh mục bán hàng?`}
+        confirmText="Xóa sản phẩm"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setConfirmDeleteItem(null)}
+      />
     </div>
   );
 };

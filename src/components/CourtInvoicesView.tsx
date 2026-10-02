@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Search, FileText, CheckCircle2, QrCode, Banknote, Calendar, Edit3, Trash2, Eye } from 'lucide-react';
 import { Invoice, Court, CatalogItem } from '../types';
 import { InvoiceDetailEditModal } from './InvoiceDetailEditModal';
+import { ConfirmModal } from './ConfirmModal';
+import { CustomCalendar } from './CustomCalendar';
 
 interface CourtInvoicesViewProps {
   invoices: Invoice[];
@@ -24,6 +26,32 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [courtFilter, setCourtFilter] = useState('all');
   const [paymentFilter, setPaymentFilter] = useState<'all' | 'qr' | 'cash'>('all');
+  const [showCalendar, setShowCalendar] = useState(false);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calendarContainerRef.current && !calendarContainerRef.current.contains(event.target as Node)) {
+        setShowCalendar(false);
+      }
+    };
+    if (showCalendar) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCalendar]);
+
+  // Default date filter to today
+  const [dateFilter, setDateFilter] = useState(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
   const [confirmDeleteRowId, setConfirmDeleteRowId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -37,7 +65,24 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
     const matchCourt = courtFilter === 'all' || inv.courtId === courtFilter;
     const matchPayment = paymentFilter === 'all' || inv.paymentMethod === paymentFilter;
 
-    return matchSearch && matchCourt && matchPayment;
+    let matchDate = true;
+    if (dateFilter) {
+      // Parse createdAt string which could be "YYYY-MM-DD HH:mm" or just "HH:mm" (assumed today)
+      let invDateString = '';
+      if (inv.createdAt.includes('-')) {
+        invDateString = inv.createdAt.split(' ')[0];
+      } else {
+        // If it's just time like "10:15", assume today
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        invDateString = `${yyyy}-${mm}-${dd}`;
+      }
+      matchDate = invDateString === dateFilter;
+    }
+
+    return matchSearch && matchCourt && matchPayment && matchDate;
   });
 
   const totalFilteredRevenue = filteredInvoices.reduce((sum, inv) => sum + inv.totalAmount, 0);
@@ -71,7 +116,7 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
           className="flex items-center gap-2 px-4 py-2.5 bg-[#006948] hover:bg-[#00855d] text-white font-bold text-sm rounded-xl shadow-sm transition-all cursor-pointer w-fit"
         >
           <FileText className="w-4 h-4" />
-          <span>+ Tạo Hóa Đơn Mới</span>
+          <span>Tạo Hóa Đơn Mới</span>
         </button>
       </div>
 
@@ -111,33 +156,30 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
             <button
               type="button"
               onClick={() => setPaymentFilter('all')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                paymentFilter === 'all'
-                  ? 'bg-[#006948] text-white font-bold'
-                  : 'text-[#545c72] hover:text-[#0b1c30]'
-              }`}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${paymentFilter === 'all'
+                ? 'bg-[#006948] text-white font-bold'
+                : 'text-[#545c72] hover:text-[#0b1c30]'
+                }`}
             >
               Tất cả
             </button>
             <button
               type="button"
               onClick={() => setPaymentFilter('qr')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                paymentFilter === 'qr'
-                  ? 'bg-[#006948] text-white font-bold'
-                  : 'text-[#545c72] hover:text-[#0b1c30]'
-              }`}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${paymentFilter === 'qr'
+                ? 'bg-[#006948] text-white font-bold'
+                : 'text-[#545c72] hover:text-[#0b1c30]'
+                }`}
             >
               QR
             </button>
             <button
               type="button"
               onClick={() => setPaymentFilter('cash')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                paymentFilter === 'cash'
-                  ? 'bg-[#006948] text-white font-bold'
-                  : 'text-[#545c72] hover:text-[#0b1c30]'
-              }`}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${paymentFilter === 'cash'
+                ? 'bg-[#006948] text-white font-bold'
+                : 'text-[#545c72] hover:text-[#0b1c30]'
+                }`}
             >
               Tiền mặt
             </button>
@@ -147,6 +189,49 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
 
       {/* Summary strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Date Filter placed on the far left */}
+        <div className="bg-white p-4 rounded-2xl border border-[#e5eeff] shadow-sm flex items-center justify-between">
+          <span className="text-xs font-bold text-[#6d7a72] uppercase">Ngày xem báo cáo</span>
+          <div className="flex items-center gap-2">
+            <div
+              className="relative"
+              ref={calendarContainerRef}
+            >
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#eff4ff] border border-[#dce9ff] rounded-xl cursor-pointer hover:bg-white transition-colors"
+                onClick={() => setShowCalendar(!showCalendar)}
+              >
+                <Calendar className="w-4 h-4 text-[#0051d5]" />
+                <span className="text-xs font-bold text-[#0b1c30]">
+                  {dateFilter ? new Date(dateFilter).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Tất cả'}
+                </span>
+              </div>
+
+              {showCalendar && (
+                <CustomCalendar
+                  selectedDate={dateFilter ? new Date(dateFilter) : null}
+                  onSelect={(date) => {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setDateFilter(`${y}-${m}-${d}`);
+                  }}
+                  onClose={() => setShowCalendar(false)}
+                />
+              )}
+            </div>
+            {dateFilter && (
+              <button
+                type="button"
+                onClick={() => setDateFilter('')}
+                className="text-xs text-[#6d7a72] hover:text-[#ba1a1a] underline cursor-pointer whitespace-nowrap"
+              >
+                Xóa lọc
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white p-4 rounded-2xl border border-[#e5eeff] shadow-sm flex items-center justify-between">
           <span className="text-xs font-bold text-[#6d7a72] uppercase">Tổng số hóa đơn</span>
           <span className="text-xl font-extrabold text-[#0b1c30]">
@@ -160,13 +245,6 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
             {formatCurrency(totalFilteredRevenue)} đ
           </span>
         </div>
-
-        <div className="bg-white p-4 rounded-2xl border border-[#e5eeff] shadow-sm flex items-center justify-between">
-          <span className="text-xs font-bold text-[#6d7a72] uppercase">Trạng thái thanh toán</span>
-          <span className="text-xs font-bold text-[#005137] bg-[#85f8c4]/60 px-3 py-1 rounded-full">
-            100% Đã thu
-          </span>
-        </div>
       </div>
 
       {/* Invoices Table */}
@@ -175,14 +253,14 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
           <table className="w-full text-left border-collapse">
             <thead className="bg-[#eff4ff] text-[#3d4a42]">
               <tr>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-36 min-w-[130px]">Sân</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-36 min-w-[130px]">Khung giờ</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-44 min-w-[140px]">Khách hàng</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-28">Thanh toán</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-right w-28">Tiền sân</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-right w-28">Dịch vụ</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-right w-32">Tổng tiền</th>
-                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-center w-24">Thao tác</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-28 min-w-[100px] whitespace-nowrap">Sân</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-28 min-w-[105px] whitespace-nowrap">Khung giờ</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-56 min-w-[200px]">Khách hàng</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider w-32 min-w-[140px] whitespace-nowrap">Thanh toán</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-right w-28 whitespace-nowrap">Tiền sân</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-right w-28 whitespace-nowrap">Dịch vụ</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-right w-32 whitespace-nowrap">Tổng tiền</th>
+                <th className="px-5 py-3.5 text-xs font-bold uppercase tracking-wider text-center w-24 whitespace-nowrap">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#eff4ff]">
@@ -194,10 +272,10 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
                   <td className="px-5 py-4 text-xs text-[#545c72] font-medium whitespace-nowrap">
                     {inv.timeSlot}
                   </td>
-                  <td className="px-5 py-4 text-xs font-bold text-[#0b1c30] truncate max-w-[170px]" title={inv.customerName}>
+                  <td className="px-5 py-4 text-xs font-bold text-[#0b1c30]" title={inv.customerName}>
                     {inv.customerName}
                   </td>
-                  <td className="px-5 py-4 text-xs">
+                  <td className="px-5 py-4 text-xs whitespace-nowrap">
                     {inv.paymentMethod === 'qr' ? (
                       <span className="inline-flex items-center gap-1 text-[#0051d5] font-semibold bg-[#eff4ff] px-2 py-0.5 rounded-md border border-[#dce9ff]">
                         <QrCode className="w-3 h-3" /> QR
@@ -208,54 +286,34 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
                       </span>
                     )}
                   </td>
-                  <td className="px-5 py-4 text-xs text-right font-medium text-[#3d4a42]">
+                  <td className="px-5 py-4 text-xs text-right font-medium text-[#3d4a42] whitespace-nowrap">
                     {formatCurrency(inv.courtFee)} đ
                   </td>
-                  <td className="px-5 py-4 text-xs text-right font-medium text-[#3d4a42]">
+                  <td className="px-5 py-4 text-xs text-right font-medium text-[#3d4a42] whitespace-nowrap">
                     {formatCurrency(inv.serviceFee)} đ
                   </td>
-                  <td className="px-5 py-4 text-xs font-extrabold text-right text-[#006948]">
+                  <td className="px-5 py-4 text-xs font-extrabold text-right text-[#006948] whitespace-nowrap">
                     {formatCurrency(inv.totalAmount)} đ
                   </td>
                   <td className="px-5 py-3 text-xs text-center whitespace-nowrap">
-                    {confirmDeleteRowId === inv.id ? (
-                      <div className="inline-flex items-center gap-1 bg-[#ffdad6] px-2.5 py-1 rounded-xl border border-[#ffb4ab] animate-fadeIn">
-                        <span className="text-[11px] font-bold text-[#ba1a1a]">Xác nhận xóa?</span>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteClick(inv.id)}
-                          className="px-2 py-0.5 bg-[#ba1a1a] hover:bg-[#93000a] text-white font-bold rounded-lg text-xs transition-colors cursor-pointer"
-                        >
-                          Xóa
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteRowId(null)}
-                          className="px-1.5 py-0.5 bg-white text-[#3d4a42] font-bold rounded-lg text-xs hover:bg-[#eff4ff] transition-colors cursor-pointer"
-                        >
-                          Hủy
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setEditingInvoice(inv)}
-                          className="w-8 h-8 flex items-center justify-center bg-[#eff4ff] hover:bg-[#dce9ff] text-[#0051d5] rounded-xl border border-[#dce9ff] transition-colors cursor-pointer shadow-2xs"
-                          title="Xem & Sửa hóa đơn"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setConfirmDeleteRowId(inv.id)}
-                          className="w-8 h-8 flex items-center justify-center text-[#ba1a1a] hover:bg-[#ffdad6] rounded-xl transition-colors cursor-pointer"
-                          title="Xóa hóa đơn"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditingInvoice(inv)}
+                        className="w-8 h-8 flex items-center justify-center bg-[#eff4ff] hover:bg-[#dce9ff] text-[#0051d5] rounded-xl border border-[#dce9ff] transition-colors cursor-pointer shadow-2xs"
+                        title="Xem & Sửa hóa đơn"
+                      >
+                        <Edit3 className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteRowId(inv.id)}
+                        className="w-8 h-8 flex items-center justify-center text-[#ba1a1a] hover:bg-[#ffdad6] rounded-xl transition-colors cursor-pointer"
+                        title="Xóa hóa đơn"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -291,6 +349,19 @@ export const CourtInvoicesView: React.FC<CourtInvoicesViewProps> = ({
           handleDeleteClick(invoiceId);
           setEditingInvoice(null);
         }}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteRowId}
+        title="Xác nhận xóa hóa đơn"
+        message={`Bạn có chắc chắn muốn xóa hóa đơn ${confirmDeleteRowId} không? Thao tác này không thể hoàn tác.`}
+        confirmText="Xóa"
+        onConfirm={() => {
+          if (confirmDeleteRowId) {
+            handleDeleteClick(confirmDeleteRowId);
+          }
+        }}
+        onCancel={() => setConfirmDeleteRowId(null)}
       />
     </div>
   );

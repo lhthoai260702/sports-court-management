@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
-import { Plus, Zap, UserCheck, Wrench, Droplets, Receipt, Trash2, Calendar } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Plus, Zap, UserCheck, Wrench, Droplets, Receipt, Trash2, Calendar, FileText } from 'lucide-react';
 import { Expense } from '../types';
+import { CurrencyInput } from './CurrencyInput';
+import { ConfirmModal } from './ConfirmModal';
+import { CustomCalendar } from './CustomCalendar';
 
 interface OperatingExpensesViewProps {
   expenses: Expense[];
@@ -15,16 +18,76 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [title, setTitle] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState<number | ''>('');
   const [category, setCategory] = useState<Expense['category']>('maintenance');
   const [note, setNote] = useState('');
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [titleError, setTitleError] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
+
+  const [dateFilter, setDateFilter] = useState(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [showCalendar, setShowCalendar] = useState(false);
+  const calendarContainerRef = useRef<HTMLDivElement>(null);
+
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
+  const [showFormCalendar, setShowFormCalendar] = useState(false);
+  const formCalendarContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (calendarContainerRef.current && !calendarContainerRef.current.contains(event.target as Node)) {
+        setShowCalendar(false);
+      }
+      if (formCalendarContainerRef.current && !formCalendarContainerRef.current.contains(event.target as Node)) {
+        setShowFormCalendar(false);
+      }
+    };
+    if (showCalendar || showFormCalendar) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showCalendar, showFormCalendar]);
+
+  const filteredExpenses = dateFilter 
+    ? expenses.filter(e => e.date === dateFilter || (e.date && e.date.includes(dateFilter))) 
+    : expenses;
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const numAmount = parseInt(amount);
-    if (!title.trim() || isNaN(numAmount) || numAmount <= 0) return;
+    const numAmount = Number(amount);
+
+    let hasError = false;
+    if (!title.trim()) {
+      setTitleError('Vui lòng nhập nội dung chi!');
+      hasError = true;
+    } else {
+      setTitleError(null);
+    }
+
+    if (isNaN(numAmount) || numAmount <= 0) {
+      setAmountError('Vui lòng nhập số tiền chi!');
+      hasError = true;
+    } else {
+      setAmountError(null);
+    }
+
+    if (hasError) return;
 
     const newExp: Expense = {
       id: `PC-010${expenses.length + 5}`,
@@ -32,7 +95,7 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
       category,
       amount: numAmount,
       creator: 'Thu ngân ca trực',
-      date: new Date().toISOString().slice(0, 10),
+      date: selectedDate,
       note: note.trim() || undefined,
     };
 
@@ -43,7 +106,7 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
     setShowAddForm(false);
   };
 
-  const totalExpenseAmount = expenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalExpenseAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const getCategoryIcon = (cat: Expense['category']) => {
     switch (cat) {
@@ -93,16 +156,60 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
           className="flex items-center gap-2 px-4 py-2.5 bg-[#ba1a1a] hover:bg-[#93000a] text-white font-bold text-sm rounded-xl shadow-sm transition-all cursor-pointer w-fit"
         >
           <Plus className="w-4 h-4" />
-          <span>+ Nhập Phiếu Chi Mới</span>
+          <span>Nhập Phiếu Chi Mới</span>
         </button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Date Filter placed on the far left */}
+        <div className="bg-white p-5 rounded-2xl border border-[#e5eeff] shadow-sm flex items-center justify-between">
+          <span className="text-xs font-bold text-[#6d7a72] uppercase">Lọc theo ngày</span>
+          <div className="flex items-center gap-2">
+            <div 
+              className="relative"
+              ref={calendarContainerRef}
+            >
+              <div 
+                className="flex items-center gap-2 px-3 py-1.5 bg-[#eff4ff] border border-[#dce9ff] rounded-xl cursor-pointer hover:bg-white transition-colors"
+                onClick={() => setShowCalendar(!showCalendar)}
+              >
+                <Calendar className="w-4 h-4 text-[#0051d5]" />
+                <span className="text-xs font-bold text-[#0b1c30]">
+                  {dateFilter ? new Date(dateFilter).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Tất cả'}
+                </span>
+              </div>
+              
+              {showCalendar && (
+                <CustomCalendar 
+                  selectedDate={dateFilter ? new Date(dateFilter) : null}
+                  onSelect={(date) => {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setDateFilter(`${y}-${m}-${d}`);
+                  }}
+                  onClose={() => setShowCalendar(false)}
+                />
+              )}
+            </div>
+            
+            {dateFilter && (
+              <button
+                type="button"
+                onClick={() => setDateFilter('')}
+                className="text-xs text-[#6d7a72] hover:text-[#ba1a1a] underline cursor-pointer whitespace-nowrap"
+              >
+                Xóa
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className="bg-white p-5 rounded-2xl border border-[#e5eeff] shadow-sm flex items-center justify-between">
           <div className="flex flex-col">
             <span className="text-xs font-bold text-[#6d7a72] uppercase">
-              Tổng chi vận hành hôm nay
+              Tổng chi vận hành {dateFilter ? '' : 'hôm nay'}
             </span>
             <span className="text-2xl font-extrabold text-[#ba1a1a] mt-1">
               {formatCurrency(totalExpenseAmount)} đ
@@ -119,22 +226,11 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
               Số phiếu chi đã lập
             </span>
             <span className="text-2xl font-extrabold text-[#0b1c30] mt-1">
-              {expenses.length} phiếu
+              {filteredExpenses.length} phiếu
             </span>
           </div>
           <div className="w-11 h-11 rounded-xl bg-[#eff4ff] text-[#0051d5] flex items-center justify-center">
-            <Calendar className="w-5 h-5" />
-          </div>
-        </div>
-
-        <div className="bg-white p-5 rounded-2xl border border-[#e5eeff] shadow-sm flex items-center justify-between">
-          <div className="flex flex-col">
-            <span className="text-xs font-bold text-[#6d7a72] uppercase">
-              Định mức ngân sách
-            </span>
-            <span className="text-sm font-bold text-[#005137] bg-[#85f8c4]/50 px-2.5 py-1 rounded-full mt-1 w-fit">
-              Đang kiểm soát tốt (&lt; 35%)
-            </span>
+            <FileText className="w-5 h-5" />
           </div>
         </div>
       </div>
@@ -153,34 +249,38 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <form onSubmit={handleSubmit} noValidate className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="flex flex-col gap-1.5 sm:col-span-2">
               <label className="text-xs font-bold uppercase text-[#3d4a42]">
                 Lý do / Nội dung chi tiền *
               </label>
               <input
                 type="text"
-                required
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (titleError) setTitleError(null);
+                }}
                 placeholder="Vd: Chi tiền nước đá ca sáng, Mua 2 bóng đèn LED Philips..."
-                className="px-4 py-2.5 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl text-sm focus:outline-none focus:border-[#ba1a1a]"
+                className={`px-4 py-2.5 bg-[#f8f9ff] border ${titleError ? 'border-red-500 focus:border-red-500' : 'border-[#dce9ff] focus:border-[#ba1a1a]'} rounded-xl text-sm focus:outline-none`}
               />
+              {titleError && <span className="text-[10px] text-red-500 font-bold">{titleError}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold uppercase text-[#3d4a42]">
                 Số tiền chi (VNĐ) *
               </label>
-              <input
-                type="number"
-                required
-                min="1000"
+              <CurrencyInput
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="Vd: 420000"
-                className="px-4 py-2.5 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl text-sm focus:outline-none focus:border-[#ba1a1a]"
+                onChange={(val) => {
+                  setAmount(val);
+                  if (amountError) setAmountError(null);
+                }}
+                placeholder="Vd: 420.000"
+                className={`px-4 py-2.5 bg-[#f8f9ff] border ${amountError ? 'border-red-500 focus:border-red-500' : 'border-[#dce9ff] focus:border-[#ba1a1a]'} rounded-xl text-sm focus:outline-none w-full`}
               />
+              {amountError && <span className="text-[10px] text-red-500 font-bold">{amountError}</span>}
             </div>
 
             <div className="flex flex-col gap-1.5">
@@ -200,7 +300,36 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
               </select>
             </div>
 
-            <div className="flex flex-col gap-1.5 sm:col-span-2">
+            <div className="flex flex-col gap-1.5 relative sm:col-span-1" ref={formCalendarContainerRef}>
+              <label className="text-xs font-bold uppercase text-[#3d4a42]">
+                Ngày chi
+              </label>
+              <div
+                className="flex items-center gap-2 px-4 py-2 bg-[#f8f9ff] border border-[#dce9ff] rounded-xl cursor-pointer hover:bg-white transition-colors h-[42px]"
+                onClick={() => setShowFormCalendar(!showFormCalendar)}
+              >
+                <Calendar className="w-4 h-4 text-[#6d7a72]" />
+                <span className="text-sm text-[#0b1c30] font-medium">
+                  {selectedDate ? new Date(selectedDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : 'Chọn ngày'}
+                </span>
+              </div>
+              
+              {showFormCalendar && (
+                <CustomCalendar 
+                  selectedDate={selectedDate ? new Date(selectedDate) : null}
+                  onSelect={(date) => {
+                    const y = date.getFullYear();
+                    const m = String(date.getMonth() + 1).padStart(2, '0');
+                    const d = String(date.getDate()).padStart(2, '0');
+                    setSelectedDate(`${y}-${m}-${d}`);
+                    setShowFormCalendar(false);
+                  }}
+                  onClose={() => setShowFormCalendar(false)}
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5 sm:col-span-1">
               <label className="text-xs font-bold uppercase text-[#3d4a42]">
                 Ghi chú bổ sung
               </label>
@@ -247,7 +376,7 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-[#eff4ff]">
-              {expenses.map((exp) => (
+              {filteredExpenses.map((exp) => (
                 <tr key={exp.id} className="hover:bg-[#f8f9ff] transition-colors">
                   <td className="px-5 py-4 text-xs font-extrabold text-[#ba1a1a]">
                     {exp.id}
@@ -271,7 +400,7 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
                   <td className="px-5 py-4 text-center">
                     <button
                       type="button"
-                      onClick={() => onDeleteExpense(exp.id)}
+                      onClick={() => setConfirmDeleteId(exp.id)}
                       className="p-1.5 rounded-lg text-[#6d7a72] hover:text-[#ba1a1a] hover:bg-[#ffdad6] transition-colors"
                       title="Xóa phiếu"
                     >
@@ -284,6 +413,20 @@ export const OperatingExpensesView: React.FC<OperatingExpensesViewProps> = ({
           </table>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={!!confirmDeleteId}
+        title="Xác nhận xóa phiếu chi"
+        message={`Bạn có chắc chắn muốn xóa phiếu chi ${confirmDeleteId} không? Thao tác này không thể hoàn tác.`}
+        confirmText="Xóa phiếu"
+        onConfirm={() => {
+          if (confirmDeleteId) {
+            onDeleteExpense(confirmDeleteId);
+            setConfirmDeleteId(null);
+          }
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 };
