@@ -69,19 +69,6 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
 }) => {
   // Helper to create default items: ONLY court rental fee is default, everything else empty!
   const createDefaultItems = (courtData: Court): BillItem[] => {
-    const getCatalogItem = (nameKeywords: string[], defaultName: string, defaultPrice: number, fallbackId?: string) => {
-      const item = catalogItems.find(i =>
-        (fallbackId && i.id === fallbackId) ||
-        nameKeywords.some(kw => i.name.toLowerCase().includes(kw.toLowerCase()))
-      );
-      return item ? item : { id: `w-${Math.random().toString(36).substr(2, 5)}`, name: defaultName, price: defaultPrice, category: 'drink' };
-    };
-
-    const aquafinaItem = getCatalogItem(['aquafina'], 'Nước suối Aquafina 500ml', 15000, 'cat-01');
-    const icedTeaItem = getCatalogItem(['trà đá'], 'Trà đá', 10000, 'cat-01a');
-    const reviveSaltItem = getCatalogItem(['chanh muối'], 'Revive chanh muối', 15000, 'cat-02');
-    const reviveNormalItem = getCatalogItem(['revive thường'], 'Revive thường', 15000);
-
     const now = Date.now();
     return [
       {
@@ -92,34 +79,6 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
         category: 'court',
         rentalTime: '',
         manualTotal: undefined,
-      },
-      {
-        id: `w-a-${now}`,
-        name: aquafinaItem.name,
-        price: aquafinaItem.price,
-        quantity: 0,
-        category: 'drink',
-      },
-      {
-        id: `w-t-${now}`,
-        name: icedTeaItem.name,
-        price: icedTeaItem.price,
-        quantity: 0,
-        category: 'drink',
-      },
-      {
-        id: `w-rs-${now}`,
-        name: reviveSaltItem.name,
-        price: reviveSaltItem.price,
-        quantity: 0,
-        category: 'drink',
-      },
-      {
-        id: `w-rn-${now}`,
-        name: reviveNormalItem.name,
-        price: reviveNormalItem.price,
-        quantity: 0,
-        category: 'drink',
       },
     ];
   };
