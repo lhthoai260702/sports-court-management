@@ -156,12 +156,20 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
     }
   };
 
-  // Filter items
-  const filteredItems = items.filter((item) => {
-    const matchSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchCat = selectedCategory === 'all' || item.category === selectedCategory;
-    return matchSearch && matchCat;
-  });
+  // Filter and sort items
+  const filteredItems = items
+    .filter((item) => {
+      const matchSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchCat = selectedCategory === 'all' || item.category === selectedCategory;
+      return matchSearch && matchCat;
+    })
+    .sort((a, b) => {
+      const categoryOrder: Record<string, number> = { drink: 1, food: 2, accessory: 3, other: 4 };
+      const orderA = categoryOrder[a.category] ?? 99;
+      const orderB = categoryOrder[b.category] ?? 99;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    });
 
   const drinkCount = items.filter((i) => i.category === 'drink').length;
   const foodCount = items.filter((i) => i.category === 'food').length;
