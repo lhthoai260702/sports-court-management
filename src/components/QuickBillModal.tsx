@@ -35,11 +35,6 @@ export const QuickBillModal: React.FC<QuickBillModalProps> = ({
     return `${yyyy}-${mm}-${dd}`;
   });
   const [courtFeeManual, setCourtFeeManual] = useState<number | ''>('');
-  const [aquafinaQty, setAquafinaQty] = useState(0);
-  const [icedTeaQty, setIcedTeaQty] = useState(0);
-  const [reviveSaltQty, setReviveSaltQty] = useState(0);
-  const [reviveNormalQty, setReviveNormalQty] = useState(0);
-  const [shuttlecockQty, setShuttlecockQty] = useState(0);
   const [showCatalogDropdown, setShowCatalogDropdown] = useState(false);
   const [selectedExtraItems, setSelectedExtraItems] = useState<
     { id: string; name: string; price: number; quantity: number; category: any }[]
@@ -85,19 +80,8 @@ export const QuickBillModal: React.FC<QuickBillModalProps> = ({
     return item ? item : { id: `w-${Math.random().toString(36).substr(2, 5)}`, name: defaultName, price: defaultPrice, category: 'drink' };
   };
 
-  const aquafinaItem = getCatalogItem(['aquafina'], 'Nước suối Aquafina 500ml', 15000, 'cat-01');
-  const icedTeaItem = getCatalogItem(['trà đá'], 'Trà đá', 10000, 'cat-01a');
-  const reviveSaltItem = getCatalogItem(['chanh muối'], 'Revive chanh muối', 15000, 'cat-02');
-  const reviveNormalItem = getCatalogItem(['revive thường'], 'Revive thường', 15000);
-  const shuttlecockItem = getCatalogItem(['quả cầu lông', 'ống cầu lông'], 'Quả cầu lông', 25000, 'cat-08a');
-
-  const aquafinaFee = aquafinaItem.price * aquafinaQty;
-  const icedTeaFee = icedTeaItem.price * icedTeaQty;
-  const reviveSaltFee = reviveSaltItem.price * reviveSaltQty;
-  const reviveNormalFee = reviveNormalItem.price * reviveNormalQty;
-  const shuttlecockFee = shuttlecockItem.price * shuttlecockQty;
   const extraFee = selectedExtraItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const serviceFee = aquafinaFee + icedTeaFee + reviveSaltFee + reviveNormalFee + shuttlecockFee + extraFee;
+  const serviceFee = extraFee;
   const totalAmount = (courtFeeManual || 0) + serviceFee;
 
   const formatCurrency = (val: number) => new Intl.NumberFormat('vi-VN').format(val);
@@ -119,61 +103,6 @@ export const QuickBillModal: React.FC<QuickBillModalProps> = ({
         manualTotal: courtFeeManual || 0,
         rentalTime: timeSlot,
       },
-      ...(aquafinaQty > 0
-        ? [
-          {
-            id: `w-a-${Date.now()}`,
-            name: aquafinaItem.name,
-            price: aquafinaItem.price,
-            quantity: aquafinaQty,
-            category: 'drink' as const,
-          },
-        ]
-        : []),
-      ...(icedTeaQty > 0
-        ? [
-          {
-            id: `w-t-${Date.now()}`,
-            name: icedTeaItem.name,
-            price: icedTeaItem.price,
-            quantity: icedTeaQty,
-            category: 'drink' as const,
-          },
-        ]
-        : []),
-      ...(reviveSaltQty > 0
-        ? [
-          {
-            id: `r-s-${Date.now()}`,
-            name: reviveSaltItem.name,
-            price: reviveSaltItem.price,
-            quantity: reviveSaltQty,
-            category: 'drink' as const,
-          },
-        ]
-        : []),
-      ...(reviveNormalQty > 0
-        ? [
-          {
-            id: `r-n-${Date.now()}`,
-            name: reviveNormalItem.name,
-            price: reviveNormalItem.price,
-            quantity: reviveNormalQty,
-            category: 'drink' as const,
-          },
-        ]
-        : []),
-      ...(shuttlecockQty > 0
-        ? [
-          {
-            id: `b-${Date.now()}`,
-            name: shuttlecockItem.name,
-            price: shuttlecockItem.price,
-            quantity: shuttlecockQty,
-            category: 'accessory' as const,
-          },
-        ]
-        : []),
       ...selectedExtraItems
         .filter((item) => item.quantity > 0)
         .map((item) => ({
@@ -357,21 +286,11 @@ export const QuickBillModal: React.FC<QuickBillModalProps> = ({
                       </div>
                       {catalogItems.filter(i =>
                         i.category !== 'court' &&
-                        i.id !== aquafinaItem.id &&
-                        i.id !== icedTeaItem.id &&
-                        i.id !== reviveSaltItem.id &&
-                        i.id !== reviveNormalItem.id &&
-                        i.id !== shuttlecockItem.id &&
                         !selectedExtraItems.some(extra => extra.id === i.id)
                       ).length > 0 ? (
                         catalogItems
                           .filter(i =>
                             i.category !== 'court' &&
-                            i.id !== aquafinaItem.id &&
-                            i.id !== icedTeaItem.id &&
-                            i.id !== reviveSaltItem.id &&
-                            i.id !== reviveNormalItem.id &&
-                            i.id !== shuttlecockItem.id &&
                             !selectedExtraItems.some(extra => extra.id === i.id)
                           )
                           .map((item) => (
@@ -461,111 +380,6 @@ export const QuickBillModal: React.FC<QuickBillModalProps> = ({
                   ))}
                 </div>
               )}
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#0b1c30]">{aquafinaItem.name} ({formatCurrency(aquafinaItem.price)}đ):</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setAquafinaQty(Math.max(0, aquafinaQty - 1))}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-sm w-6 text-center">{aquafinaQty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setAquafinaQty(aquafinaQty + 1)}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#0b1c30]">{icedTeaItem.name} ({formatCurrency(icedTeaItem.price)}đ):</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setIcedTeaQty(Math.max(0, icedTeaQty - 1))}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-sm w-6 text-center">{icedTeaQty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setIcedTeaQty(icedTeaQty + 1)}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#0b1c30]">{reviveSaltItem.name} ({formatCurrency(reviveSaltItem.price)}đ):</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setReviveSaltQty(Math.max(0, reviveSaltQty - 1))}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-sm w-6 text-center">{reviveSaltQty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setReviveSaltQty(reviveSaltQty + 1)}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#0b1c30]">{reviveNormalItem.name} ({formatCurrency(reviveNormalItem.price)}đ):</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setReviveNormalQty(Math.max(0, reviveNormalQty - 1))}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-sm w-6 text-center">{reviveNormalQty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setReviveNormalQty(reviveNormalQty + 1)}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-[#0b1c30]">{shuttlecockItem.name} ({formatCurrency(shuttlecockItem.price)}đ):</span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShuttlecockQty(Math.max(0, shuttlecockQty - 1))}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-sm w-6 text-center">{shuttlecockQty}</span>
-                  <button
-                    type="button"
-                    onClick={() => setShuttlecockQty(shuttlecockQty + 1)}
-                    className="w-7 h-7 bg-white rounded-lg font-bold border border-[#dce9ff]"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
 
             </div>
 
