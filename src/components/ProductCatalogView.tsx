@@ -43,6 +43,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
   const [formCategory, setFormCategory] = useState<'drink' | 'food' | 'accessory' | 'other'>('drink');
   const [formUnit, setFormUnit] = useState('chai');
   const [formPrice, setFormPrice] = useState<number>(20000);
+  const [formIsDefault, setFormIsDefault] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -55,6 +56,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
     setFormCategory('drink');
     setFormUnit('chai');
     setFormPrice(20000);
+    setFormIsDefault(false);
     setIsModalOpen(true);
   };
 
@@ -64,6 +66,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
     setFormCategory(item.category as 'drink' | 'food' | 'accessory' | 'other');
     setFormUnit(item.unit);
     setFormPrice(item.price);
+    setFormIsDefault(!!item.isDefault);
     setIsModalOpen(true);
   };
 
@@ -81,6 +84,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
         category: formCategory,
         unit: formUnit.trim() || 'cái',
         price: formPrice,
+        isDefault: formIsDefault,
       };
       onUpdateItem(updated);
       showToast(`Đã cập nhật "${updated.name}" thành công!`);
@@ -91,6 +95,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
         category: formCategory,
         unit: formUnit.trim() || 'cái',
         price: formPrice,
+        isDefault: formIsDefault,
       };
       onAddItem(newItem);
       showToast(`Đã thêm sản phẩm "${newItem.name}" vào danh mục!`);
@@ -311,6 +316,7 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                 <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider">Phân Loại</th>
                 <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-center">ĐVT</th>
                 <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-right">Giá Bán (VNĐ)</th>
+                <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-center">Mặc định</th>
                 <th className="px-5 py-3 text-xs font-bold uppercase tracking-wider text-center w-28">Thao Tác</th>
               </tr>
             </thead>
@@ -338,6 +344,12 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
 
                   <td className="px-5 py-3.5 text-sm font-extrabold text-right text-[#006948]">
                     {formatCurrency(item.price)} đ
+                  </td>
+
+                  <td className="px-5 py-3.5 text-center">
+                    {item.isDefault ? (
+                      <span className="inline-block w-2 h-2 rounded-full bg-[#006948]" title="Mặc định có trên bill"></span>
+                    ) : null}
                   </td>
 
                   <td className="px-5 py-3.5 text-center">
@@ -468,6 +480,20 @@ export const ProductCatalogView: React.FC<ProductCatalogViewProps> = ({
                     đ
                   </span>
                 </div>
+              </div>
+
+              {/* isDefault Checkbox */}
+              <div className="flex items-center gap-2 mt-1">
+                <input
+                  type="checkbox"
+                  id="isDefault"
+                  checked={formIsDefault}
+                  onChange={(e) => setFormIsDefault(e.target.checked)}
+                  className="w-4 h-4 rounded border-[#dce9ff] text-[#006948] focus:ring-[#006948]"
+                />
+                <label htmlFor="isDefault" className="text-sm font-semibold text-[#3d4a42] cursor-pointer">
+                  Mặc định xuất hiện trên bill
+                </label>
               </div>
 
               {/* Actions */}

@@ -29,8 +29,9 @@ export interface CatalogItem {
   id: string;
   name: string;
   price: number;
-  category: 'court' | 'drink' | 'food' | 'accessory' | 'other';
+  category: 'court' | 'drink' | 'food' | 'accessory' | 'other' | string;
   unit: string;
+  isDefault?: boolean;
 }
 
 export interface Invoice {

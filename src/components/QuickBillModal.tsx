@@ -43,6 +43,28 @@ export const QuickBillModal: React.FC<QuickBillModalProps> = ({
   const [courtFeeError, setCourtFeeError] = useState<string | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      const defaultCatalogItems = catalogItems.filter(c => c.isDefault);
+      const defaults: { id: string; name: string; price: number; quantity: number; category: any }[] = [];
+      const now = Date.now();
+      defaultCatalogItems.forEach((found, idx) => {
+        defaults.push({
+          id: `default-extra-${found.id}-${now}-${idx}`,
+          name: found.name,
+          price: found.price,
+          quantity: 0,
+          category: found.category,
+        });
+      });
+      setSelectedExtraItems(defaults);
+      setCourtFeeManual('');
+      setCustomerName('');
+      setTimeSlot('');
+      setPaymentMethod('qr');
+    }
+  }, [isOpen, catalogItems]);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
 

@@ -70,7 +70,7 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
   // Helper to create default items: ONLY court rental fee is default, everything else empty!
   const createDefaultItems = (courtData: Court): BillItem[] => {
     const now = Date.now();
-    return [
+    const items: BillItem[] = [
       {
         id: `court-rent-${courtData.id}-${now}`,
         name: `Tiền giờ thuê sân`,
@@ -81,6 +81,20 @@ export const CourtDetailView: React.FC<CourtDetailViewProps> = ({
         manualTotal: undefined,
       },
     ];
+
+    const defaultCatalogItems = catalogItems.filter(c => c.isDefault);
+    defaultCatalogItems.forEach((found, idx) => {
+      items.push({
+        id: `default-item-${found.id}-${now}-${idx}`,
+        invoiceId: '', // Draft items don't have invoiceId yet
+        name: found.name,
+        price: found.price,
+        quantity: 0,
+        category: found.category,
+      });
+    });
+
+    return items;
   };
 
   // Current active draft items matching the user's requirements

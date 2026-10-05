@@ -24,11 +24,12 @@ model Court {
 }
 
 model CatalogItem {
-  id       String @id @default(uuid())
-  name     String
-  price    Float
-  category String
-  unit     String
+  id        String  @id @default(uuid())
+  name      String
+  price     Float
+  category  String
+  unit      String
+  isDefault Boolean @default(false)
 }
 
 model Invoice {
